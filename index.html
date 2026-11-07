@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0a0908">
+<title>MECHREVO · 电竞控制台</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ======================= 侧栏 ======================= -->
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 40 40">
+          <path d="M8 31V9l12 12L32 9v22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M14 31v-9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="brand-text">
+        <b>MECHREVO</b>
+        <i>电竞控制台</i>
+      </span>
+    </div>
+
+    <div class="device-card">
+      <div class="device-top">
+        <span class="device-name">极光 Pro 16</span>
+        <span class="device-live"><i class="dot"></i>在线</span>
+      </div>
+      <div class="device-state">系统运行平稳</div>
+      <div class="device-mini">
+        <div><span>CPU</span><b id="miniCpu">62°</b></div>
+        <div><span>GPU</span><b id="miniGpu">54°</b></div>
+        <div><span>风扇</span><b id="miniFan">2340</b></div>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <p class="nav-label">监控</p>
+      <button class="nav-item active" data-view="dashboard">
+        <span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 12l4.2-3.2"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg></span>
+        <span>控制台</span><em class="nav-tag">LIVE</em>
+      </button>
+      <button class="nav-item" data-view="performance">
+        <span class="ico"><svg viewBox="0 0 24 24"><path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H12L13 2z"/></svg></span>
+        <span>性能</span>
+      </button>
+      <button class="nav-item" data-view="lighting">
+        <span class="ico"><svg viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6.5 10h.01M10.5 10h.01M14.5 10h.01M18 10h.01M6.5 14h.01M18 14h.01M9.5 14h5"/></svg></span>
+        <span>灯光</span>
+      </button>
+      <button class="nav-item" data-view="battery">
+        <span class="ico"><svg viewBox="0 0 24 24"><rect x="2.5" y="7" width="16.5" height="10" rx="2.2"/><path d="M22 11v2"/><rect x="5" y="9.5" width="8.5" height="5" rx="1" fill="currentColor" stroke="none"/></svg></span>
+        <span>电池</span>
+      </button>
+      <button class="nav-item" data-view="display">
+        <span class="ico"><svg viewBox="0 0 24 24"><rect x="2.5" y="4.5" width="19" height="12.5" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span>
+        <span>显示</span>
+      </button>
+      <button class="nav-item" data-view="device">
+        <span class="ico"><svg viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1.6"/><rect x="10" y="10" width="4" height="4"/><path d="M9.5 2v3M14.5 2v3M9.5 19v3M14.5 19v3M2 9.5h3M2 14.5h3M19 9.5h3M19 14.5h3"/></svg></span>
+        <span>设备信息</span>
+      </button>
+
+      <p class="nav-label">系统</p>
+      <button class="nav-item" data-view="preferences">
+        <span class="ico"><svg viewBox="0 0 24 24"><path d="M4 7h9M18 7h2M4 12h3M12 12h8M4 17h11M20 17h0"/><circle cx="15.5" cy="7" r="2"/><circle cx="9.5" cy="12" r="2"/><circle cx="17.5" cy="17" r="2"/></svg></span>
+        <span>常规设置</span>
+      </button>
+      <button class="nav-item" data-view="about">
+        <span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.8h.01"/></svg></span>
+        <span>关于</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-foot">
+      <span>v2.0 · 开源重制版</span>
+      <button class="power-btn" id="powerBtn" title="电源">
+        <svg viewBox="0 0 24 24"><path d="M12 3v8"/><path d="M6.5 6.5a8 8 0 1 0 11 0"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ======================= 主区 ======================= -->
+  <div class="stage">
+    <header class="topbar">
+      <div class="search">
+        <svg viewBox="0 0 24 24" class="search-ico"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>
+        <input id="search" type="search" placeholder="搜索设置、功能或设备" autocomplete="off" spellcheck="false">
+        <kbd>Ctrl K</kbd>
+      </div>
+      <div class="top-actions">
+        <span class="top-stamp">ESports Console</span>
+        <button class="icon-btn" title="通知">
+          <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+          <i class="badge"></i>
+        </button>
+        <button class="avatar" title="账户">Z</button>
+      </div>
+    </header>
+
+    <main class="main" id="main">
+
+      <!-- ============ 控制台 ============ -->
+      <section class="view active" id="view-dashboard">
+        <header class="page-head">
+          <div>
+            <p class="eyebrow">Dashboard</p>
+            <h1>控制台</h1>
+            <p class="page-sub">极光 Pro 16 · i9-14900HX · RTX 4070 Laptop · 已接入电源</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn ghost" id="checkupBtn">系统体检</button>
+            <button class="btn primary" id="boostBtn">一键狂暴</button>
+          </div>
+        </header>
+
+        <div class="metrics">
+          <article class="metric">
+            <div class="metric-head">
+              <span class="m-ico"><svg viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1.6"/><rect x="10" y="10" width="4" height="4"/><path d="M9.5 2v3M14.5 2v3M9.5 19v3M14.5 19v3M2 9.5h3M2 14.5h3M19 9.5h3M19 14.5h3"/></svg></span>
+              <span class="m-name">CPU</span>
+              <span class="m-chip" id="cpuTempChip">62°C</span>
+            </div>
+            <div class="metric-value"><b id="cpuNum">38</b><span>%</span></div>
+            <canvas class="spark" data-series="cpu"></canvas>
+            <div class="metric-foot"><span>i9-14900HX</span><span>4.2 GHz</span></div>
+          </article>
+
+          <article class="metric">
+            <div class="metric-head">
+              <span class="m-ico"><svg viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="14" rx="2"/><circle cx="12" cy="12" r="3.2"/><path d="M6 5V3.2M10 5V3.2"/></svg></span>
+              <span class="m-name">GPU</span>
+              <span class="m-chip" id="gpuTempChip">54°C</span>
+            </div>
+            <div class="metric-value"><b id="gpuNum">27</b><span>%</span></div>
+            <canvas class="spark" data-series="gpu"></canvas>
+            <div class="metric-foot"><span>RTX 4070</span><span>1.9 GHz</span></div>
+          </article>
+
+          <article class="metric">
+            <div class="metric-head">
+              <span class="m-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M12 10V3.5M12 14v6.5M10 12H3.5M14 12h6.5"/><path d="M9.5 9.5 5.5 5.5M14.5 9.5l4-4M9.5 14.5l-4 4M14.5 14.5l4 4"/></svg></span>
+              <span class="m-name">风扇</span>
+              <span class="m-chip">自动</span>
+            </div>
+            <div class="metric-value"><b id="fanNum">2,340</b><span>RPM</span></div>
+            <canvas class="spark" data-series="fan"></canvas>
+            <div class="metric-foot"><span>双风扇 · 四热管</span><span>25%</span></div>
+          </article>
+
+          <article class="metric">
+            <div class="metric-head">
+              <span class="m-ico"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="10" rx="1.6"/><path d="M7 17v3M12 17v3M17 17v3M7 10v4M12 10v4M17 10v4"/></svg></span>
+              <span class="m-name">内存</span>
+              <span class="m-chip" id="memChip">31%</span>
+            </div>
+            <div class="metric-value"><b id="memNum">9.8</b><span>GB</span></div>
+            <canvas class="spark" data-series="mem"></canvas>
+            <div class="metric-foot"><span>DDR5 5600</span><span>32 GB</span></div>
+          </article>
+        </div>
+
+        <section class="panel perf-panel">
+          <div class="panel-head">
+            <div>
+              <h2>性能实时监控</h2>
+              <p>最近 60 秒负载走势 · 采样间隔 1 秒</p>
+              <div class="legend inline head-legend">
+                <span class="lg"><i class="lg-line cpu"></i>CPU 负载</span>
+                <span class="lg"><i class="lg-line gpu"></i>GPU 负载</span>
+              </div>
+            </div>
+            <div class="segmented" id="modeSeg">
+              <button data-mode="quiet">安静</button>
+              <button data-mode="balanced" class="active">均衡</button>
+              <button data-mode="turbo">狂暴</button>
+            </div>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="mainChart"></canvas>
+          </div>
+          <div class="panel-foot">
+            <div class="pf"><span>风扇转速</span><b id="pfFan">2,340</b><em>RPM</em></div>
+            <div class="pf"><span>CPU 功耗</span><b id="pfPower">45</b><em>W</em></div>
+            <div class="pf"><span>散热余量</span><b id="pfHeadroom" class="ok">充足</b></div>
+            <div class="pf"><span>当前模式</span><b id="pfMode">均衡</b></div>
+          </div>
+        </section>
+
+        <div class="card-grid">
+          <article class="fcard" data-view="preferences">
+            <div class="fcard-head">
+              <span class="c-ico"><svg viewBox="0 0 24 24"><path d="M4 7h9M18 7h2M4 12h3M12 12h8M4 17h11M20 17h0"/><circle cx="15.5" cy="7" r="2"/><circle cx="9.5" cy="12" r="2"/><circle cx="17.5" cy="17" r="2"/></svg></span>
+              <span class="mini-switch on" data-switch></span>
+            </div>
+            <h3>常规设置</h3>
+            <p>开机自启、快速切换、电源策略与独显直连</p>
+            <div class="fcard-foot"><span>已启用 3 项</span><span class="go">进入 <i>›</i></span></div>
+          </article>
+
+          <article class="fcard" data-view="performance">
+            <div class="fcard-head">
+              <span class="c-ico"><svg viewBox="0 0 24 24"><path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H12L13 2z"/></svg></span>
+              <span class="mini-chip" id="cardMode">均衡</span>
+            </div>
+            <h3>性能</h3>
+            <p>模式选择、风扇曲线、应用性能配置绑定</p>
+            <div class="fcard-foot"><span id="cardPerf">CPU 62°C · GPU 54°C</span><span class="go">进入 <i>›</i></span></div>
+          </article>
+
+          <article class="fcard" data-view="lighting">
+            <div class="fcard-head">
+              <span class="c-ico"><svg viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6.5 10h.01M10.5 10h.01M14.5 10h.01M18 10h.01M6.5 14h.01M18 14h.01M9.5 14h5"/></svg></span>
+              <span class="mini-switch on" data-switch></span>
+            </div>
+            <h3>灯光设置</h3>
+            <p>键盘背光、灯效、亮度与分区控制</p>
+            <div class="fcard-foot"><span>呼吸 · 暖金</span><span class="go">进入 <i>›</i></span></div>
+          </article>
+
+          <article class="fcard" data-view="battery">
+            <div class="fcard-head">
+              <span class="c-ico"><svg viewBox="0 0 24 24"><rect x="2.5" y="7" width="16.5" height="10" rx="2.2"/><path d="M22 11v2"/><rect x="5" y="9.5" width="8.5" height="5" rx="1" fill="currentColor" stroke="none"/></svg></span>
+              <span class="mini-chip">87%</span>
+            </div>
+            <h3>电池</h3>
+            <p>电量、健康度、充电限制与电池保护</p>
+            <div class="battery-bar"><i style="width:87%"></i></div>
+            <div class="fcard-foot"><span>健康度 96%</span><span class="go">进入 <i>›</i></span></div>
+          </article>
+
+          <article class="fcard" data-view="display">
+            <div class="fcard-head">
+              <span class="c-ico"><svg viewBox="0 0 24 24"><rect x="2.5" y="4.5" width="19" height="12.5" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span>
+              <span class="mini-chip">165Hz</span>
+            </div>
+            <h3>显示设置</h3>
+            <p>亮度、色温、刷新率与 HDR 显示</p>
+            <div class="fcard-foot"><span>2.5K · sRGB 100%</span><span class="go">进入 <i>›</i></span></div>
+          </article>
+
+          <article class="fcard" data-view="device">
+            <div class="fcard-head">
+              <span class="c-ico"><svg viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1.6"/><rect x="10" y="10" width="4" height="4"/><path d="M9.5 2v3M14.5 2v3M9.5 19v3M14.5 19v3M2 9.5h3M2 14.5h3M19 9.5h3M19 14.5h3"/></svg></span>
+              <span class="mini-chip">正常</span>
+            </div>
+            <h3>设备信息</h3>
+            <p>系统信息、驱动版本、序列号与系统监控</p>
+            <div class="fcard-foot"><span>BIOS 1.24 · 已激活</span><span class="go">进入 <i>›</i></span></div>
+          </article>
+        </div>
+
+        <p class="page-note">数据为实时采样示意；本页面为开源重制版，用于界面与交互演示。</p>
+      </section>
+
+      <!-- ============ 性能 ============ -->
+      <section class="view" id="view-performance">
+        <header class="page-head">
+          <div>
+            <p class="eyebrow">Performance</p>
+            <h1>性能</h1>
+            <p class="page-sub">功耗、温度与散热的实时状态</p>
+          </div>
+          <div class="segmented" id="modeSeg2">
+            <button data-mode="quiet">安静</button>
+            <button data-mode="balanced" class="active">均衡</button>
+            <button data-mode="turbo">狂暴</button>
+          </div>
+        </header>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div><h2>负载曲线</h2><p>CPU / GPU 最近 60 秒</p></div>
+            <div class="legend inline">
+              <span class="lg"><i class="lg-line cpu"></i>CPU</span>
+              <span class="lg"><i class="lg-line gpu"></i>GPU</span>
+            </div>
+          </div>
+          <div class="chart-wrap tall"><canvas id="perfChart"></canvas></div>
+        </section>
+
+        <div class="split">
+          <section class="panel">
+            <div class="panel-head"><div><h2>温度</h2><p>核心与存储</p></div></div>
+            <div class="bar-list">
+              <div class="bar-row"><span>CPU</span><div class="bar"><i id="barCpu" style="width:62%"></i></div><b id="tempCpu">62°C</b></div>
+              <div class="bar-row"><span>GPU</span><div class="bar"><i id="barGpu" style="width:54%"></i></div><b id="tempGpu">54°C</b></div>
+              <div class="bar-row"><span>SSD</span><div class="bar"><i style="width:41%"></i></div><b>41°C</b></div>
+              <div class="bar-row"><span>内存</span><div class="bar"><i style="width:36%"></i></div><b>36°C</b></div>
+            </div>
+            <p class="panel-tip">温度超过 85°C 时建议切换至狂暴模式增强散热。</p>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head"><div><h2>风扇</h2><p>跟随温度自动调节</p></div><span class="mini-switch on" data-switch></span></div>
+            <div class="slider-row">
+              <label>最低转速 <b>35%</b></label>
+              <input type="range" min="20" max="60" value="35" style="--p:30%">
+            </div>
+            <div class="slider-row">
+              <label>起转温度 <b>55°C</b></label>
+              <input type="range" min="40" max="80" value="55" style="--p:37%">
+            </div>
+            <div class="slider-row">
+              <label>全速温度 <b>85°C</b></label>
+              <input type="range" min="70" max="95" value="85" style="--p:60%">
+            </div>
+            <p class="panel-tip">均衡模式下的自定义曲线，切换模式后按预设生效。</p>
+          </section>
+        </div>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div><h2>应用性能配置绑定</h2><p>启动指定程序时自动切换性能模式</p></div>
+            <button class="btn ghost small" id="addBindBtn">+ 添加应用</button>
+          </div>
+          <div class="bind-list" id="bindList">
+            <div class="bind-row"><span class="bind-ico">SC2</span><span class="bind-name">StarCraft II.exe</span><span class="bind-mode">狂暴</span><button class="icon-btn tiny" data-remove>×</button></div>
+            <div class="bind-row"><span class="bind-ico">PR</span><span class="bind-name">Premiere Pro.exe</span><span class="bind-mode">均衡</span><button class="icon-btn tiny" data-remove>×</button></div>
+            <div class="bind-row"><span class="bind-ico">WPS</span><span class="bind-name">wps.exe</span><span class="bind-mode">安静</span><button class="icon-btn tiny" data-remove>×</button></div>
+          </div>
+        </section>
+      </section>
+
+      <!-- ============ 灯光 ============ -->
+      <section class="view" id="view-lighting">
+        <header class="page-head">
+          <div>
+            <p class="eyebrow">Lighting</p>
+            <h1>灯光设置</h1>
+            <p class="page-sub">键盘背光 · RGB 区域控制</p>
+          </div>
+          <span class="switch wide on" data-switch id="lightMaster"><i></i></span>
+        </header>
+
+        <div class="split">
+          <section class="panel">
+            <div class="panel-head"><div><h2>键区预览</h2><p>当前灯效实时预览</p></div><span class="mini-chip" id="effectChip">呼吸</span></div>
+            <div class="keyboard" id="keyboard">
+              <div class="kb-row" data-row="0"></div>
+              <div class="kb-row" data-row="1"></div>
+              <div class="kb-row" data-row="2"></div>
+              <div class="kb-row" data-row="3"></div>
+              <div class="kb-row" data-row="4"></div>
+            </div>
+            <div class="kb-foot">
+              <span>仅示意键位布局</span>
+              <span>亮度 <b id="kbBrightLabel">70%</b></span>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head"><div><h2>灯效控制</h2><p>键盘 / 品牌灯 / 底部灯带</p></div></div>
+            <div class="ctrl-block">
+              <label class="ctrl-label">灯效模式</label>
+              <div class="segmented wrap" id="effectSeg">
+                <button data-effect="static" class="active">静态</button>
+                <button data-effect="breath">呼吸</button>
+                <button data-effect="wave">波浪</button>
+                <button data-effect="rainbow">彩虹</button>
+                <button data-effect="audio">随声</button>
+              </div>
+            </div>
+            <div class="ctrl-block">
+              <label class="ctrl-label">颜色</label>
+              <div class="swatches" id="swatches">
+                <button class="swatch active" style="--c:#d4af6a" data-color="#d4af6a" title="暖金"></button>
+                <button class="swatch" style="--c:#c05a45" data-color="#c05a45" title="朱砂"></button>
+                <button class="swatch" style="--c:#7fae8a" data-color="#7fae8a" title="青玉"></button>
+                <button class="swatch" style="--c:#7d92b8" data-color="#7d92b8" title="雾蓝"></button>
+                <button class="swatch" style="--c:#e8e2d4" data-color="#e8e2d4" title="月白"></button>
+                <button class="swatch" style="--c:#c9a0dc" data-color="#c9a0dc" title="紫藤"></button>
+                <input type="color" id="customColor" class="color-input" value="#d4af6a" title="自定义颜色">
+              </div>
+            </div>
+            <div class="ctrl-block">
+              <label class="ctrl-label">亮度</label>
+              <div class="slider-row"><input type="range" id="brightRange" min="10" max="100" value="70" style="--p:63%"></div>
+            </div>
+            <div class="ctrl-block">
+              <label class="ctrl-label">亮度区域</label>
+              <div class="toggle-list">
+                <div class="toggle-row"><span>键盘背光</span><span class="mini-switch on" data-switch></span></div>
+                <div class="toggle-row"><span>品牌 Logo 灯</span><span class="mini-switch on" data-switch></span></div>
+                <div class="toggle-row"><span>底部氛围灯带</span><span class="mini-switch" data-switch></span></div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <!-- ============ 电池 ============ -->
+      <section class="view" id="view-battery">
+        <header class="page-head">
+          <div>
+            <p class="eyebrow">Battery</p>
+            <h1>电池</h1>
+            <p class="page-sub">电量 · 健康度 · 充电保护</p>
+          </div>
+          <span class="mini-chip">已接入电源</span>
+        </header>
+
+        <div class="split">
+          <section class="panel battery-hero">
+            <div class="ring-wrap">
+              <svg viewBox="0 0 200 200" class="ring">
+                <circle cx="100" cy="100" r="82" class="ring-track"/>
+                <circle cx="100" cy="100" r="82" class="ring-fill" id="ringFill"/>
+              </svg>
+              <div class="ring-center">
+                <b>87<span>%</span></b>
+                <span class="ring-label">剩余电量</span>
+                <span class="ring-sub">预计可用 6 小时 25 分</span>
+              </div>
+            </div>
+            <div class="battery-stats">
+              <div><span>电池健康度</span><b>96%</b></div>
+              <div><span>循环次数</span><b>132 次</b></div>
+              <div><span>设计容量</span><b>82.0 Wh</b></div>
+              <div><span>当前容量</span><b>78.7 Wh</b></div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head"><div><h2>充电保护</h2><p>延长电池寿命</p></div><span class="switch wide on" data-switch id="chargeLimitSwitch"><i></i></span></div>
+            <div class="ctrl-block">
+              <label class="ctrl-label">充电上限 <b id="limitLabel">80%</b></label>
+              <div class="slider-row"><input type="range" id="chargeLimit" min="50" max="100" value="80" style="--p:60%"></div>
+              <p class="panel-tip">长期插电使用建议限制在 80%，可显著减缓容量衰减。</p>
+            </div>
+            <div class="toggle-list">
+              <div class="toggle-row"><span>智能充电（学习使用习惯）</span><span class="mini-switch on" data-switch></span></div>
+              <div class="toggle-row"><span>低电量自动省电</span><span class="mini-switch on" data-switch></span></div>
+              <div class="toggle-row"><span>电池校准提醒</span><span class="mini-switch" data-switch></span></div>
+            </div>
+            <button class="btn ghost wide-btn" id="calibrateBtn">开始电池校准</button>
+          </section>
+        </div>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div><h2>近 7 日续航</h2><p>日常混合负载估算 · 分钟</p></div>
+            <span class="mini-chip">平均 5 小时 15 分</span>
+          </div>
+          <div class="week-chart">
+            <div class="week-col"><b>312</b><div class="bar-slot"><i style="height:76%"></i></div><span>11/01</span></div>
+            <div class="week-col"><b>288</b><div class="bar-slot"><i style="height:66%"></i></div><span>11/02</span></div>
+            <div class="week-col"><b>335</b><div class="bar-slot"><i style="height:86%"></i></div><span>11/03</span></div>
+            <div class="week-col"><b>296</b><div class="bar-slot"><i style="height:70%"></i></div><span>11/04</span></div>
+            <div class="week-col"><b>318</b><div class="bar-slot"><i style="height:80%"></i></div><span>11/05</span></div>
+            <div class="week-col"><b>274</b><div class="bar-slot"><i style="height:60%"></i></div><span>11/06</span></div>
+            <div class="week-col today"><b>385</b><div class="bar-slot"><i style="height:100%"></i></div><span>11/07</span></div>
+          </div>
+        </section>
+      </section>
+
+      <!-- ============ 显示 ============ -->
+      <section class="view" id="view-display">
+        <header class="page-head">
+          <div>
+            <p class="eyebrow">Display</p>
+            <h1>显示设置</h1>
+            <p class="page-sub">2.5K · 165Hz · sRGB 100%</p>
+          </div>
+          <span class="mini-chip">HDR 已开启</span>
+        </header>
+
+        <div class="split">
+          <section class="panel">
+            <div class="panel-head"><div><h2>屏幕</h2><p>亮度与色温</p></div></div>
+            <div class="ctrl-block">
+              <label class="ctrl-label">亮度 <b id="brightDisplayLabel">70%</b></label>
+              <div class="slider-row"><input type="range" id="displayBright" min="10" max="100" value="70" style="--p:63%"></div>
+            </div>
+            <div class="ctrl-block">
+              <label class="ctrl-label">色温 <b id="tempLabel">标准 6500K</b></label>
+              <div class="slider-row"><input type="range" id="colorTemp" min="4500" max="8000" value="6500" style="--p:57%"></div>
+              <div class="temp-scale"><span>暖</span><span>标准</span><span>冷</span></div>
+            </div>
+            <div class="ctrl-block">
+              <label class="ctrl-label">刷新率</label>
+              <div class="segmented" id="refreshSeg">
+                <button data-hz="60">60Hz</button>
+                <button data-hz="120">120Hz</button>
+                <button data-hz="144">144Hz</button>
+                <button data-hz="165" class="active">165Hz</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head"><div><h2>色彩与显示</h2><p>图像质量与护眼</p></div></div>
+            <div class="ctrl-block">
+              <label class="ctrl-label">色彩模式</label>
+              <div class="color-modes" id="colorModes">
+                <button class="mode-card active" data-mode="standard"><b>标准</b><span>sRGB 100%</span></button>
+                <button class="mode-card" data-mode="vivid"><b>鲜艳</b><span>DCI-P3 95%</span></button>
+                <button class="mode-card" data-mode="game"><b>游戏</b><span>增强对比</span></button>
+              </div>
+            </div>
+            <div class="toggle-list">
+              <div class="toggle-row"><span>HDR</span><span class="mini-switch on" data-switch></span></div>
+              <div class="toggle-row"><span>护眼模式</span><span class="mini-switch" data-switch></span></div>
+              <div class="toggle-row"><span>自适应亮度</span><span class="mini-switch on" data-switch></span></div>
+            </div>
+            <p class="panel-tip">护眼模式会降低蓝光，长时间阅读时建议开启。</p>
+          </section>
+        </div>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div><h2>色彩校正</h2><p>逐通道微调 · 色彩还原预览</p></div>
+            <button class="btn ghost small" id="colorResetBtn">恢复默认</button>
+          </div>
+          <div class="color-correct">
+            <div class="cc-sliders">
+              <div class="slider-row"><label>红 <b id="ccRLabel">100</b></label><input type="range" id="ccR" min="50" max="150" value="100" style="--p:50%"></div>
+              <div class="slider-row"><label>绿 <b id="ccGLabel">100</b></label><input type="range" id="ccG" min="50" max="150" value="100" style="--p:50%"></div>
+              <div class="slider-row"><label>蓝 <b id="ccBLabel">100</b></label><input type="range" id="ccB" min="50" max="150" value="100" style="--p:50%"></div>
+            </div>
+            <div class="cc-preview">
+              <div class="cc-swatches">
+                <i style="--c:#e3cba4"></i><i style="--c:#c58f6d"></i><i style="--c:#cf6b52"></i>
+                <i style="--c:#7fae8a"></i><i style="--c:#7d92b8"></i><i style="--c:#e8e2d4"></i>
+              </div>
+              <div class="cc-caption"><span>标准色板</span><span id="ccReadout">R 100 · G 100 · B 100</span></div>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <!-- ============ 设备信息 ============ -->
+      <section class="view" id="view-device">
+        <header class="page-head">
+          <div>
+            <p class="eyebrow">Device</p>
+            <h1>设备信息</h1>
+            <p class="page-sub">系统信息 · 驱动 · 序列号</p>
+          </div>
+          <button class="btn ghost" id="copyInfoBtn">复制设备信息</button>
+        </header>
+
+        <div class="split">
+          <section class="panel">
+            <div class="panel-head"><div><h2>基本信息</h2><p>MECHREVO 极光 Pro 16</p></div></div>
+            <dl class="info-list">
+              <div><dt>设备型号</dt><dd>极光 Pro 16（MECHREVO）</dd></div>
+              <div><dt>处理器</dt><dd>Intel Core i9-14900HX · 24 核 32 线程</dd></div>
+              <div><dt>显卡</dt><dd>NVIDIA RTX 4070 Laptop · 8GB GDDR6</dd></div>
+              <div><dt>内存</dt><dd>32 GB DDR5-5600 · 双通道</dd></div>
+              <div><dt>存储</dt><dd>1 TB PCIe 4.0 NVMe</dd></div>
+              <div><dt>BIOS 版本</dt><dd>1.24 · 2025-09</dd></div>
+              <div><dt>序列号</dt><dd>MR16-2025-08-0412</dd></div>
+              <div><dt>系统版本</dt><dd>Windows 11 家庭中文版 · 23H2</dd></div>
+            </dl>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head"><div><h2>实时监控</h2><p>核心温度 / 负载</p></div><span class="mini-chip">正常</span></div>
+            <div class="monitor-list">
+              <div class="monitor-row"><span>CPU 温度</span><b id="monCpu">62°C</b><div class="bar"><i id="monCpuBar" style="width:62%"></i></div></div>
+              <div class="monitor-row"><span>GPU 温度</span><b id="monGpu">54°C</b><div class="bar"><i id="monGpuBar" style="width:54%"></i></div></div>
+              <div class="monitor-row"><span>内存占用</span><b>9.8 / 32 GB</b><div class="bar"><i style="width:31%"></i></div></div>
+              <div class="monitor-row"><span>磁盘空间</span><b>612 / 1024 GB</b><div class="bar"><i style="width:60%"></i></div></div>
+            </div>
+            <div class="driver-list">
+              <div class="driver-row"><span>NVIDIA 显卡驱动</span><b>572.30</b><em class="ok">最新</em></div>
+              <div class="driver-row"><span>Intel 芯片组</span><b>10.1.19800</b><em class="ok">最新</em></div>
+              <div class="driver-row"><span>Killer Wi-Fi 7 网卡</span><b>3.1.8</b><em class="warn">可更新</em></div>
+            </div>
+            <p class="panel-tip">系统运行平稳，未检测到异常。</p>
+          </section>
+        </div>
+      </section>
+
+      <!-- ============ 常规设置 ============ -->
+      <section class="view" id="view-preferences">
+        <header class="page-head">
+          <div>
+            <p class="eyebrow">Preferences</p>
+            <h1>常规设置</h1>
+            <p class="page-sub">启动行为 · 快速切换 · 系统优化</p>
+          </div>
+        </header>
+
+        <div class="split">
+          <section class="panel">
+            <div class="panel-head"><div><h2>启动与行为</h2><p>控制台的基础行为</p></div></div>
+            <div class="toggle-list">
+              <div class="toggle-row"><span>开机自动启动</span><span class="mini-switch on" data-switch></span></div>
+              <div class="toggle-row"><span>启动时最小化到托盘</span><span class="mini-switch on" data-switch></span></div>
+              <div class="toggle-row"><span>关闭窗口时最小化</span><span class="mini-switch" data-switch></span></div>
+              <div class="toggle-row"><span>自动检测驱动更新</span><span class="mini-switch on" data-switch></span></div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head"><div><h2>快速切换</h2><p>一键切换整机使用场景</p></div></div>
+            <div class="quick-modes">
+              <button class="quick-card" data-quick="office"><b>办公</b><span>低功耗 · 静音</span></button>
+              <button class="quick-card active" data-quick="balanced"><b>均衡</b><span>日常使用</span></button>
+              <button class="quick-card" data-quick="game"><b>游戏</b><span>高性能 · 独显直连</span></button>
+            </div>
+            <div class="toggle-list">
+              <div class="toggle-row"><span>独显直连（dGPU）</span><span class="mini-switch on" data-switch></span></div>
+              <div class="toggle-row"><span>Windows 游戏模式</span><span class="mini-switch on" data-switch></span></div>
+            </div>
+            <button class="btn primary wide-btn" id="optimizeBtn">立即系统优化</button>
+          </section>
+        </div>
+
+        <section class="panel">
+          <div class="panel-head"><div><h2>快捷键</h2><p>全局生效</p></div></div>
+          <div class="key-list">
+            <div class="key-row"><span>打开控制台</span><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>C</kbd></div>
+            <div class="key-row"><span>切换性能模式</span><kbd>Fn</kbd><kbd>+</kbd><kbd>Q</kbd></div>
+            <div class="key-row"><span>调节键盘亮度</span><kbd>Fn</kbd><kbd>+</kbd><kbd>F1 / F2</kbd></div>
+            <div class="key-row"><span>全屏截图</span><kbd>Win</kbd><kbd>+</kbd><kbd>Shift</kbd><kbd>S</kbd></div>
+          </div>
+        </section>
+      </section>
+
+      <!-- ============ 关于 ============ -->
+      <section class="view" id="view-about">
+        <header class="page-head">
+          <div>
+            <p class="eyebrow">About</p>
+            <h1>关于</h1>
+            <p class="page-sub">MECHREVO 电竞控制台 · 开源重制版</p>
+          </div>
+        </header>
+
+        <section class="panel about-panel">
+          <div class="about-mark">
+            <svg viewBox="0 0 40 40"><path d="M8 31V9l12 12L32 9v22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 31v-9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </div>
+          <h2>MECHREVO 电竞控制台</h2>
+          <p class="about-ver">版本 2.0.0 · 开源重制版</p>
+          <p class="about-desc">
+            以「暗色墨金」视觉重制的电竞控制台界面，覆盖常规设置、性能、灯光、电池、显示与设备信息六大模块。
+            纯前端实现，可直接在浏览器中运行，亦可作为桌面端 UI 原型复用。
+          </p>
+          <div class="about-meta">
+            <div><span>许可证</span><b>MIT</b></div>
+            <div><span>技术栈</span><b>原生 HTML / CSS / JS</b></div>
+            <div><span>作者</span><b>bietou123</b></div>
+          </div>
+        </section>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>
