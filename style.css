@@ -830,3 +830,51 @@ kbd{
   .search kbd{display:none}
   .metrics{grid-template-columns:repeat(2,1fr)}
 }
+
+/* ---------- 搜索结果计数 ---------- */
+.search-count{
+  font-family:var(--mono);font-size:9.5px;color:var(--gold);letter-spacing:.06em;
+  border:1px solid rgba(212,175,106,.28);border-radius:5px;padding:2px 7px;white-space:nowrap;
+  background:rgba(212,175,106,.06);
+}
+.search-count[hidden]{display:none}
+
+/* ---------- 键盘焦点 ---------- */
+::selection{background:rgba(212,175,106,.28);color:#fff8ea}
+button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
+  outline:2px solid rgba(212,175,106,.62);outline-offset:2px;
+}
+.search input:focus-visible{outline:none}
+
+/* ---------- 极窄屏 ---------- */
+@media (max-width:520px){
+  .sidebar{width:58px;flex-basis:58px;padding:14px 8px 10px}
+  .brand{padding:0 0 14px}
+  .topbar{height:60px;flex:0 0 60px;padding:0 12px;gap:12px}
+  .search{width:100%;height:36px}
+  .top-actions .icon-btn{display:none}
+  .avatar{width:30px;height:30px;font-size:12px}
+  .main{padding:20px 14px 44px}
+  .metrics{grid-template-columns:1fr;gap:10px}
+  .metric{padding:14px}
+  .metric-value b{font-size:30px}
+  .panel{padding:18px;border-radius:14px}
+  .panel-head{flex-wrap:wrap;gap:10px}
+  .panel-head h2{font-size:15px}
+  .segmented{flex-wrap:wrap}
+  .panel-foot{grid-template-columns:1fr;gap:14px}
+  .page-head{gap:12px;margin-bottom:22px}
+  .page-head h1{font-size:24px}
+  .week-chart{gap:6px}
+  .week-col i{max-width:30px}
+}
+
+/* ---------- 减少动态效果 ---------- */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:.001ms!important;animation-iteration-count:1!important;
+    transition-duration:.001ms!important;scroll-behavior:auto!important;
+  }
+  .metric:hover{transform:none}
+  .view.active{animation:none}
+}

@@ -4,7 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#0a0908">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="机械革命电竞控制台暗色墨金风格高保真重设计：控制台、性能、灯光、电池、显示、设备信息，纯前端零依赖。">
+<meta property="og:title" content="MECHREVO 电竞控制台 · 暗金重设计">
+<meta property="og:description" content="把官方控制台重设计为暗色墨金风格：八大视图、实时曲线、全局搜索，纯前端零依赖。">
+<meta property="og:type" content="website">
 <title>MECHREVO · 电竞控制台</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b0a09'/%3E%3Cpath d='M17 45V19l15 15 15-15v26' fill='none' stroke='%23d4af6a' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -88,10 +94,11 @@
   <!-- ======================= 主区 ======================= -->
   <div class="stage">
     <header class="topbar">
-      <div class="search">
+      <div class="search" role="search">
         <svg viewBox="0 0 24 24" class="search-ico"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>
-        <input id="search" type="search" placeholder="搜索设置、功能或设备" autocomplete="off" spellcheck="false">
-        <kbd>Ctrl K</kbd>
+        <input id="search" type="search" placeholder="搜索设置、功能或设备" autocomplete="off" spellcheck="false" aria-label="搜索设置、功能或设备">
+        <span class="search-count" id="searchCount" hidden></span>
+        <kbd id="searchKbd">Ctrl K</kbd>
       </div>
       <div class="top-actions">
         <span class="top-stamp">ESports Console</span>
@@ -103,7 +110,7 @@
       </div>
     </header>
 
-    <main class="main" id="main">
+    <main class="main" id="main" tabindex="-1">
 
       <!-- ============ 控制台 ============ -->
       <section class="view active" id="view-dashboard">

@@ -66,13 +66,22 @@
      ------------------------------------------------------------ */
   const navItems = $$('.nav-item');
   const views = $$('.view');
+  navItems.forEach(n => {
+    if (n.classList.contains('active')) n.setAttribute('aria-current', 'page');
+  });
 
   function switchView(name, opts = {}) {
     const target = $(`#view-${name}`);
     if (!target) return;
     views.forEach(v => v.classList.toggle('active', v === target));
-    navItems.forEach(n => n.classList.toggle('active', n.dataset.view === name));
+    navItems.forEach(n => {
+      const active = n.dataset.view === name;
+      n.classList.toggle('active', active);
+      if (active) n.setAttribute('aria-current', 'page');
+      else n.removeAttribute('aria-current');
+    });
     if (!opts.keepScroll) $('#main').scrollTop = 0;
+    if (opts.focus) $('#main')?.focus({ preventScroll: true });
     requestAnimationFrame(() => { drawAll(); });
   }
 
@@ -664,34 +673,54 @@
      搜索
      ------------------------------------------------------------ */
   const searchInput = $('#search');
+  const searchCount = $('#searchCount');
+  const searchKbd = $('#searchKbd');
   const fcards = $$('.fcard');
+
+  function showSearchCount(n) {
+    if (!searchCount) return;
+    if (n > 0) {
+      searchCount.textContent = `${n} 项`;
+      searchCount.hidden = false;
+      if (searchKbd) searchKbd.hidden = true;
+    } else {
+      searchCount.hidden = true;
+      if (searchKbd) searchKbd.hidden = false;
+    }
+  }
 
   function clearSearch() {
     $$('.dimmed').forEach(el => el.classList.remove('dimmed'));
     $$('.match').forEach(el => el.classList.remove('match'));
     $$('.hit').forEach(el => el.classList.remove('hit'));
+    showSearchCount(0);
   }
 
   function runSearch(q) {
     q = q.trim().toLowerCase();
     if (!q) { clearSearch(); return; }
     const activeView = $('.view.active');
+    let hits = 0;
 
     navItems.forEach(n => {
       const hit = n.textContent.toLowerCase().includes(q);
+      if (hit) hits++;
       n.classList.toggle('dimmed', !hit);
       n.classList.toggle('hit', hit);
     });
     fcards.forEach(c => {
       const hit = c.textContent.toLowerCase().includes(q);
+      if (hit) hits++;
       c.classList.toggle('dimmed', !hit);
       c.classList.toggle('hit', hit);
     });
     $$('.panel', activeView).forEach(p => {
       const hit = p.textContent.toLowerCase().includes(q);
+      if (hit) hits++;
       p.classList.toggle('dimmed', !hit);
       p.classList.toggle('hit', hit);
     });
+    showSearchCount(hits);
   }
 
   function searchJump() {
