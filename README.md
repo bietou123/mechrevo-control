@@ -4,7 +4,7 @@
 
 网页版是纯前端实现，**零依赖、零构建**，双击 `index.html` 即可打开，不需要联网、不需要安装任何东西。
 
-桌面版（Electron，v1.2.0 起）在此之上接入本机真实硬件：CPU / GPU 负载与温度、内存、电池、屏幕亮度与刷新率，并通过官方控制中心的本地 MQTT 服务（127.0.0.1:13688）切换**安静 / 均衡 / 狂暴**三档，用官方 `ACPIDriverDll.dll` 读 EC 拿真实风扇转速（实测 4568 / 4427 RPM）与 PL1/PL2/PL4 功耗墙。v1.2.1 起，键盘背光三档与充电上限也经同一官方 DLL 写入 EC——只写白名单里的单个寄存器，写后立即读回校验，不符自动回滚（见「安全边界」）。做不到的能力会如实标注「只读 · 不可用」，绝不伪造成功。
+桌面版（Electron，v1.2.0 起）在此之上接入本机真实硬件：CPU / GPU 负载与温度、内存、电池、屏幕亮度与刷新率，并通过官方控制中心的本地 MQTT 服务（127.0.0.1:13688）切换**安静 / 均衡 / 狂暴**三档，用官方 `ACPIDriverDll.dll` 读 EC 拿真实风扇转速（实测 4568 / 4427 RPM）与 PL1/PL2/PL4 功耗墙。v1.3.0 起，键盘背光三档与充电上限也经同一官方 DLL 写入 EC——只写白名单里的单个寄存器，写后立即读回校验，不符自动回滚（见「安全边界」）。做不到的能力会如实标注「只读 · 不可用」，绝不伪造成功。
 
 > ⚠️ 本项目是独立的第三方客户端，与机械革命（MECHREVO）官方无关。网页版的数据为**前端模拟**；桌面版展示本机实测值，但只覆盖下表所列能力。
 
@@ -25,7 +25,7 @@
 
 | 版本 | 说明 | 下载 |
 |---|---|---|
-| 桌面版 v1.2.1 | Windows 便携版，免安装，双击即用（新增键盘背光三档与充电上限写入） | [MECHREVO-Control-1.2.1.exe](https://github.com/bietou123/mechrevo-control/releases/download/v1.2.1/MECHREVO-Control-1.2.1.exe) |
+| 桌面版 v1.3.0 | Windows 便携版，免安装，双击即用（键盘背光三档 + 充电上限真实写入） | [MECHREVO-Control-1.3.0.exe](https://github.com/bietou123/mechrevo-control/releases/download/v1.3.0/MECHREVO-Control-1.3.0.exe) |
 | 桌面版 v1.2.0 | 上一版：档位切换 + 风扇/功耗墙只读 | [MECHREVO-Control-1.2.0.exe](https://github.com/bietou123/mechrevo-control/releases/download/v1.2.0/MECHREVO-Control-1.2.0.exe) |
 | 网页版 | 零依赖纯前端，克隆仓库后双击 `index.html` | [全部发布](https://github.com/bietou123/mechrevo-control/releases) |
 

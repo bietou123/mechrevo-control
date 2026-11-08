@@ -9,5 +9,10 @@ Thumbs.db
 ktest.cjs
 probe23.cjs
 
+# 一次性 EC 探针输出
+.ec80.json
+.ec100.json
+.ec*.json
+
 # 厂商安装包，无分发权，不入库
 downloads/
