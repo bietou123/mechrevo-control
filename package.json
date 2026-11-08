@@ -1,0 +1,48 @@
+{
+  "name": "mechrevo-control",
+  "productName": "MECHREVO Control",
+  "version": "1.1.0",
+  "description": "MECHREVO Z3 Pro 电竞控制台重设计（桌面版）",
+  "main": "main.js",
+  "author": "bietou123",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win portable"
+  },
+  "build": {
+    "appId": "com.bietou123.mechrevo-control",
+    "productName": "MECHREVO Control",
+    "directories": {
+      "output": "release",
+      "buildResources": "assets"
+    },
+    "files": [
+      "index.html",
+      "style.css",
+      "app.js",
+      "main.js",
+      "preload.js",
+      "assets/icon.ico"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "portable": {
+      "artifactName": "MECHREVO-Control-${version}.exe"
+    }
+  },
+  "devDependencies": {
+    "electron": "^40.10.6",
+    "electron-builder": "^26.0.0"
+  }
+}

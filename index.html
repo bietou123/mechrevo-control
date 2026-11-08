@@ -34,7 +34,7 @@
 
     <div class="device-card">
       <div class="device-top">
-        <span class="device-name">极光 Pro 16</span>
+        <span class="device-name" id="deviceName">Z3 Pro</span>
         <span class="device-live"><i class="dot"></i>在线</span>
       </div>
       <div class="device-state">系统运行平稳</div>
@@ -101,12 +101,23 @@
         <kbd id="searchKbd">Ctrl K</kbd>
       </div>
       <div class="top-actions">
-        <span class="top-stamp">ESports Console</span>
+        <span class="top-stamp">Z3 Pro · GM5MG0O</span>
         <button class="icon-btn" title="通知">
           <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
           <i class="badge"></i>
         </button>
         <button class="avatar" title="账户">Z</button>
+        <div class="win-controls" id="winControls" hidden>
+          <button class="win-btn" data-win="min" aria-label="最小化" title="最小化">
+            <svg viewBox="0 0 12 12"><path d="M2 6h8"/></svg>
+          </button>
+          <button class="win-btn" data-win="max" aria-label="最大化" title="最大化">
+            <svg viewBox="0 0 12 12"><rect x="2.5" y="2.5" width="7" height="7" rx="1"/></svg>
+          </button>
+          <button class="win-btn close" data-win="close" aria-label="关闭" title="关闭">
+            <svg viewBox="0 0 12 12"><path d="m3 3 6 6M9 3l-6 6"/></svg>
+          </button>
+        </div>
       </div>
     </header>
 
@@ -118,7 +129,7 @@
           <div>
             <p class="eyebrow">Dashboard</p>
             <h1>控制台</h1>
-            <p class="page-sub">极光 Pro 16 · i9-14900HX · RTX 4070 Laptop · 已接入电源</p>
+            <p class="page-sub" id="pageSub">正在读取本机硬件…</p>
           </div>
           <div class="page-actions">
             <button class="btn ghost" id="checkupBtn">系统体检</button>
@@ -135,7 +146,7 @@
             </div>
             <div class="metric-value"><b id="cpuNum">38</b><span>%</span></div>
             <canvas class="spark" data-series="cpu"></canvas>
-            <div class="metric-foot"><span>i9-14900HX</span><span>4.2 GHz</span></div>
+            <div class="metric-foot"><span>i7-10875H</span><span id="cpuClock">—</span></div>
           </article>
 
           <article class="metric">
@@ -146,18 +157,18 @@
             </div>
             <div class="metric-value"><b id="gpuNum">27</b><span>%</span></div>
             <canvas class="spark" data-series="gpu"></canvas>
-            <div class="metric-foot"><span>RTX 4070</span><span>1.9 GHz</span></div>
+            <div class="metric-foot"><span>RTX 3060 Laptop</span><span id="gpuClock">—</span></div>
           </article>
 
           <article class="metric">
             <div class="metric-head">
               <span class="m-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M12 10V3.5M12 14v6.5M10 12H3.5M14 12h6.5"/><path d="M9.5 9.5 5.5 5.5M14.5 9.5l4-4M9.5 14.5l-4 4M14.5 14.5l4 4"/></svg></span>
               <span class="m-name">风扇</span>
-              <span class="m-chip">自动</span>
+              <span class="m-chip" id="fanChip">N/A</span>
             </div>
-            <div class="metric-value"><b id="fanNum">2,340</b><span>RPM</span></div>
+            <div class="metric-value"><b id="fanNum">—</b><span>RPM</span></div>
             <canvas class="spark" data-series="fan"></canvas>
-            <div class="metric-foot"><span>双风扇 · 四热管</span><span>25%</span></div>
+            <div class="metric-foot"><span>EC 未开放</span><span>—</span></div>
           </article>
 
           <article class="metric">
@@ -168,7 +179,7 @@
             </div>
             <div class="metric-value"><b id="memNum">9.8</b><span>GB</span></div>
             <canvas class="spark" data-series="mem"></canvas>
-            <div class="metric-foot"><span>DDR5 5600</span><span>32 GB</span></div>
+            <div class="metric-foot"><span>DDR4</span><span id="memTotal">32 GB</span></div>
           </article>
         </div>
 
@@ -176,7 +187,7 @@
           <div class="panel-head">
             <div>
               <h2>性能实时监控</h2>
-              <p>最近 60 秒负载走势 · 采样间隔 1 秒</p>
+              <p>最近 60 秒负载走势 · 采样间隔 2 秒</p>
               <div class="legend inline head-legend">
                 <span class="lg"><i class="lg-line cpu"></i>CPU 负载</span>
                 <span class="lg"><i class="lg-line gpu"></i>GPU 负载</span>
@@ -192,8 +203,8 @@
             <canvas id="mainChart"></canvas>
           </div>
           <div class="panel-foot">
-            <div class="pf"><span>风扇转速</span><b id="pfFan">2,340</b><em>RPM</em></div>
-            <div class="pf"><span>CPU 功耗</span><b id="pfPower">45</b><em>W</em></div>
+            <div class="pf"><span>风扇转速</span><b id="pfFan">—</b><em>RPM</em></div>
+            <div class="pf"><span>GPU 功耗</span><b id="pfPower">—</b><em>W</em></div>
             <div class="pf"><span>散热余量</span><b id="pfHeadroom" class="ok">充足</b></div>
             <div class="pf"><span>当前模式</span><b id="pfMode">均衡</b></div>
           </div>
@@ -227,42 +238,42 @@
             </div>
             <h3>灯光设置</h3>
             <p>键盘背光、灯效、亮度与分区控制</p>
-            <div class="fcard-foot"><span>呼吸 · 暖金</span><span class="go">进入 <i>›</i></span></div>
+            <div class="fcard-foot"><span>需厂商驱动</span><span class="go">进入 <i>›</i></span></div>
           </article>
 
           <article class="fcard" data-view="battery">
             <div class="fcard-head">
               <span class="c-ico"><svg viewBox="0 0 24 24"><rect x="2.5" y="7" width="16.5" height="10" rx="2.2"/><path d="M22 11v2"/><rect x="5" y="9.5" width="8.5" height="5" rx="1" fill="currentColor" stroke="none"/></svg></span>
-              <span class="mini-chip">87%</span>
+              <span class="mini-chip" id="cardBattPct">—</span>
             </div>
             <h3>电池</h3>
             <p>电量、健康度、充电限制与电池保护</p>
-            <div class="battery-bar"><i style="width:87%"></i></div>
-            <div class="fcard-foot"><span>健康度 96%</span><span class="go">进入 <i>›</i></span></div>
+            <div class="battery-bar"><i id="cardBattBar" style="width:0%"></i></div>
+            <div class="fcard-foot"><span id="cardBattFoot">读取中…</span><span class="go">进入 <i>›</i></span></div>
           </article>
 
           <article class="fcard" data-view="display">
             <div class="fcard-head">
               <span class="c-ico"><svg viewBox="0 0 24 24"><rect x="2.5" y="4.5" width="19" height="12.5" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span>
-              <span class="mini-chip">165Hz</span>
+              <span class="mini-chip" id="cardDispHz">—</span>
             </div>
             <h3>显示设置</h3>
             <p>亮度、色温、刷新率与 HDR 显示</p>
-            <div class="fcard-foot"><span>2.5K · sRGB 100%</span><span class="go">进入 <i>›</i></span></div>
+            <div class="fcard-foot"><span id="cardDispSub">—</span><span class="go">进入 <i>›</i></span></div>
           </article>
 
           <article class="fcard" data-view="device">
             <div class="fcard-head">
               <span class="c-ico"><svg viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1.6"/><rect x="10" y="10" width="4" height="4"/><path d="M9.5 2v3M14.5 2v3M9.5 19v3M14.5 19v3M2 9.5h3M2 14.5h3M19 9.5h3M19 14.5h3"/></svg></span>
-              <span class="mini-chip">正常</span>
+              <span class="mini-chip" id="cardDevChip">—</span>
             </div>
             <h3>设备信息</h3>
-            <p>系统信息、驱动版本、序列号与系统监控</p>
-            <div class="fcard-foot"><span>BIOS 1.24 · 已激活</span><span class="go">进入 <i>›</i></span></div>
+            <p>系统信息、驱动版本与系统监控</p>
+            <div class="fcard-foot"><span id="cardDevSub">读取中…</span><span class="go">进入 <i>›</i></span></div>
           </article>
         </div>
 
-        <p class="page-note">数据为实时采样示意；本页面为开源重制版，用于界面与交互演示。</p>
+        <p class="page-note">数据来自本机真实硬件；无法通过公开接口读取的项目在界面中如实标注，不做模拟。</p>
       </section>
 
       <!-- ============ 性能 ============ -->
@@ -295,15 +306,15 @@
           <section class="panel">
             <div class="panel-head"><div><h2>温度</h2><p>核心与存储</p></div></div>
             <div class="bar-list">
-              <div class="bar-row"><span>CPU</span><div class="bar"><i id="barCpu" style="width:62%"></i></div><b id="tempCpu">62°C</b></div>
-              <div class="bar-row"><span>GPU</span><div class="bar"><i id="barGpu" style="width:54%"></i></div><b id="tempGpu">54°C</b></div>
-              <div class="bar-row"><span>SSD</span><div class="bar"><i style="width:41%"></i></div><b>41°C</b></div>
-              <div class="bar-row"><span>内存</span><div class="bar"><i style="width:36%"></i></div><b>36°C</b></div>
+              <div class="bar-row"><span>CPU</span><div class="bar"><i id="barCpu" style="width:0%"></i></div><b id="tempCpu">—</b></div>
+              <div class="bar-row"><span>GPU</span><div class="bar"><i id="barGpu" style="width:0%"></i></div><b id="tempGpu">—</b></div>
+              <div class="bar-row"><span>SSD</span><div class="bar"><i style="width:0%"></i></div><b title="读取需要管理员权限">需管理员</b></div>
+              <div class="bar-row"><span>内存</span><div class="bar"><i style="width:0%"></i></div><b>无传感器</b></div>
             </div>
-            <p class="panel-tip">温度超过 85°C 时建议切换至狂暴模式增强散热。</p>
+            <p class="panel-tip">GPU 温度来自 nvidia-smi。CPU 温度需厂商 EC 或 LibreHardwareMonitor 内核驱动，本应用不伪造读数。</p>
           </section>
 
-          <section class="panel">
+          <section class="panel" data-lock="风扇控制">
             <div class="panel-head"><div><h2>风扇</h2><p>跟随温度自动调节</p></div><span class="mini-switch on" data-switch></span></div>
             <div class="slider-row">
               <label>最低转速 <b>35%</b></label>
@@ -321,7 +332,7 @@
           </section>
         </div>
 
-        <section class="panel">
+        <section class="panel" data-lock="应用绑定">
           <div class="panel-head">
             <div><h2>应用性能配置绑定</h2><p>启动指定程序时自动切换性能模式</p></div>
             <button class="btn ghost small" id="addBindBtn">+ 添加应用</button>
@@ -335,7 +346,7 @@
       </section>
 
       <!-- ============ 灯光 ============ -->
-      <section class="view" id="view-lighting">
+      <section class="view" id="view-lighting" data-lock="键盘灯控制">
         <header class="page-head">
           <div>
             <p class="eyebrow">Lighting</p>
@@ -420,20 +431,20 @@
                 <circle cx="100" cy="100" r="82" class="ring-fill" id="ringFill"/>
               </svg>
               <div class="ring-center">
-                <b>87<span>%</span></b>
+                <b><span id="battPct">—</span><span>%</span></b>
                 <span class="ring-label">剩余电量</span>
-                <span class="ring-sub">预计可用 6 小时 25 分</span>
+                <span class="ring-sub" id="battSub">读取中</span>
               </div>
             </div>
             <div class="battery-stats">
-              <div><span>电池健康度</span><b>96%</b></div>
-              <div><span>循环次数</span><b>132 次</b></div>
-              <div><span>设计容量</span><b>82.0 Wh</b></div>
-              <div><span>当前容量</span><b>78.7 Wh</b></div>
+              <div><span>电池健康度</span><b id="battHealth">—</b></div>
+              <div><span>循环次数</span><b id="battCycles">—</b></div>
+              <div><span>设计容量</span><b id="battDesign">—</b></div>
+              <div><span>当前容量</span><b id="battFull">—</b></div>
             </div>
           </section>
 
-          <section class="panel">
+          <section class="panel" data-lock="充电阈值">
             <div class="panel-head"><div><h2>充电保护</h2><p>延长电池寿命</p></div><span class="switch wide on" data-switch id="chargeLimitSwitch"><i></i></span></div>
             <div class="ctrl-block">
               <label class="ctrl-label">充电上限 <b id="limitLabel">80%</b></label>
@@ -449,7 +460,7 @@
           </section>
         </div>
 
-        <section class="panel">
+        <section class="panel" data-demo>
           <div class="panel-head">
             <div><h2>近 7 日续航</h2><p>日常混合负载估算 · 分钟</p></div>
             <span class="mini-chip">平均 5 小时 15 分</span>
@@ -472,9 +483,9 @@
           <div>
             <p class="eyebrow">Display</p>
             <h1>显示设置</h1>
-            <p class="page-sub">2.5K · 165Hz · sRGB 100%</p>
+            <p class="page-sub">正在读取显示参数…</p>
           </div>
-          <span class="mini-chip">HDR 已开启</span>
+          <span class="mini-chip" id="dispChip">—</span>
         </header>
 
         <div class="split">
@@ -492,15 +503,12 @@
             <div class="ctrl-block">
               <label class="ctrl-label">刷新率</label>
               <div class="segmented" id="refreshSeg">
-                <button data-hz="60">60Hz</button>
-                <button data-hz="120">120Hz</button>
-                <button data-hz="144">144Hz</button>
-                <button data-hz="165" class="active">165Hz</button>
+                <span class="na-tag">读取中…</span>
               </div>
             </div>
           </section>
 
-          <section class="panel">
+          <section class="panel" data-lock="色彩模式">
             <div class="panel-head"><div><h2>色彩与显示</h2><p>图像质量与护眼</p></div></div>
             <div class="ctrl-block">
               <label class="ctrl-label">色彩模式</label>
@@ -519,7 +527,7 @@
           </section>
         </div>
 
-        <section class="panel">
+        <section class="panel" data-lock="色彩校正">
           <div class="panel-head">
             <div><h2>色彩校正</h2><p>逐通道微调 · 色彩还原预览</p></div>
             <button class="btn ghost small" id="colorResetBtn">恢复默认</button>
@@ -554,33 +562,32 @@
 
         <div class="split">
           <section class="panel">
-            <div class="panel-head"><div><h2>基本信息</h2><p>MECHREVO 极光 Pro 16</p></div></div>
+            <div class="panel-head"><div><h2>基本信息</h2><p id="devTitle">MECHREVO Z3 Pro</p></div></div>
             <dl class="info-list">
-              <div><dt>设备型号</dt><dd>极光 Pro 16（MECHREVO）</dd></div>
-              <div><dt>处理器</dt><dd>Intel Core i9-14900HX · 24 核 32 线程</dd></div>
-              <div><dt>显卡</dt><dd>NVIDIA RTX 4070 Laptop · 8GB GDDR6</dd></div>
-              <div><dt>内存</dt><dd>32 GB DDR5-5600 · 双通道</dd></div>
-              <div><dt>存储</dt><dd>1 TB PCIe 4.0 NVMe</dd></div>
-              <div><dt>BIOS 版本</dt><dd>1.24 · 2025-09</dd></div>
-              <div><dt>序列号</dt><dd>MR16-2025-08-0412</dd></div>
-              <div><dt>系统版本</dt><dd>Windows 11 家庭中文版 · 23H2</dd></div>
+              <div><dt>设备型号</dt><dd id="devModel">—</dd></div>
+              <div><dt>处理器</dt><dd id="devCPU">—</dd></div>
+              <div><dt>显卡</dt><dd id="devGPU">—</dd></div>
+              <div><dt>内存</dt><dd id="devRAM">—</dd></div>
+              <div><dt>存储</dt><dd id="devStorage">—</dd></div>
+              <div><dt>BIOS 版本</dt><dd id="devBios">—</dd></div>
+              <div><dt>主板</dt><dd id="devBoard">—</dd></div>
+              <div><dt>系统版本</dt><dd id="devOS">—</dd></div>
             </dl>
           </section>
 
           <section class="panel">
-            <div class="panel-head"><div><h2>实时监控</h2><p>核心温度 / 负载</p></div><span class="mini-chip">正常</span></div>
+            <div class="panel-head"><div><h2>实时监控</h2><p>核心温度 / 负载</p></div><span class="mini-chip" id="monChip">读取中</span></div>
             <div class="monitor-list">
-              <div class="monitor-row"><span>CPU 温度</span><b id="monCpu">62°C</b><div class="bar"><i id="monCpuBar" style="width:62%"></i></div></div>
-              <div class="monitor-row"><span>GPU 温度</span><b id="monGpu">54°C</b><div class="bar"><i id="monGpuBar" style="width:54%"></i></div></div>
-              <div class="monitor-row"><span>内存占用</span><b>9.8 / 32 GB</b><div class="bar"><i style="width:31%"></i></div></div>
-              <div class="monitor-row"><span>磁盘空间</span><b>612 / 1024 GB</b><div class="bar"><i style="width:60%"></i></div></div>
+              <div class="monitor-row"><span>CPU 温度</span><b id="monCpu">—</b><div class="bar"><i id="monCpuBar" style="width:0%"></i></div></div>
+              <div class="monitor-row"><span>GPU 温度</span><b id="monGpu">—</b><div class="bar"><i id="monGpuBar" style="width:0%"></i></div></div>
+              <div class="monitor-row"><span>内存占用</span><b id="monMem">—</b><div class="bar"><i id="monMemBar" style="width:0%"></i></div></div>
+              <div class="monitor-row"><span>磁盘空间</span><b id="monDisk">—</b><div class="bar"><i id="monDiskBar" style="width:0%"></i></div></div>
             </div>
             <div class="driver-list">
-              <div class="driver-row"><span>NVIDIA 显卡驱动</span><b>572.30</b><em class="ok">最新</em></div>
-              <div class="driver-row"><span>Intel 芯片组</span><b>10.1.19800</b><em class="ok">最新</em></div>
-              <div class="driver-row"><span>Killer Wi-Fi 7 网卡</span><b>3.1.8</b><em class="warn">可更新</em></div>
+              <div class="driver-row"><span>NVIDIA 显卡驱动</span><b id="drvGpu">—</b><em class="ok">已安装</em></div>
+              <div class="driver-row"><span>厂商控制中心</span><b>未安装</b><em class="warn">影响风扇 / 灯光控制</em></div>
             </div>
-            <p class="panel-tip">系统运行平稳，未检测到异常。</p>
+            <p class="panel-tip" id="monTip">CPU 温度与风扇转速需要 LibreHardwareMonitor 驱动支持。</p>
           </section>
         </div>
       </section>
@@ -621,7 +628,7 @@
           </section>
         </div>
 
-        <section class="panel">
+        <section class="panel" data-lock="全局快捷键">
           <div class="panel-head"><div><h2>快捷键</h2><p>全局生效</p></div></div>
           <div class="key-list">
             <div class="key-row"><span>打开控制台</span><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>C</kbd></div>

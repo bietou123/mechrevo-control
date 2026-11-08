@@ -1,5 +1,6 @@
 .shots/
 node_modules/
+release/
 *.log
 .DS_Store
 Thumbs.db

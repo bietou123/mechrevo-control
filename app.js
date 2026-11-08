@@ -9,6 +9,10 @@
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const fmt = n => Math.round(n).toLocaleString('en-US');
+  const desktop = window.desktop || null;
+  const showTemp = v => (v == null || !Number.isFinite(v)) ? '—' : `${Math.round(v)}°C`;
+  const showNum = (v, suffix = '') => (v == null || !Number.isFinite(v)) ? '—' : `${Math.round(v)}${suffix}`;
+  const gib = bytes => bytes / 1073741824;
 
   /* ------------------------------------------------------------
      状态
@@ -22,8 +26,12 @@
   const state = {
     mode: 'balanced',
     cpu: 38, gpu: 27, mem: 30.6,
+    memGB: 9.8, memTotalGB: 32,
     cpuTemp: 62, gpuTemp: 54,
     fan: 2340, power: 45,
+    battery: null,
+    real: !!desktop,
+    gpuClock: null, cpuClock: null,
     series: {
       cpu: [], gpu: [], fan: [], mem: []
     },
@@ -32,8 +40,9 @@
     }
   };
 
-  /* 初始化 60 个历史点 */
+  /* 初始化 60 个历史点（仅浏览器预览的模拟模式） */
   (function seedSeries() {
+    if (desktop) return;
     const m = MODES[state.mode];
     let c = m.cpu, g = m.gpu, f = 2300, mem = 30;
     for (let i = 0; i < 60; i++) {
@@ -132,6 +141,7 @@
       const y = padTop + innerH - (clamp(v, min, max) - min) / (max - min) * innerH;
       return [x, y];
     });
+    if (pts.length < 2) return;
 
     if (opts.fill) {
       smoothPath(ctx, pts);
@@ -235,6 +245,7 @@
      遥测模拟
      ------------------------------------------------------------ */
   function tick() {
+    if (desktop) return; // 桌面版由真实遥测驱动
     const m = MODES[state.mode];
 
     state.cpu = clamp(state.cpu + (m.cpu - state.cpu) * 0.14 + (Math.random() - 0.5) * 9, 2, 99);
@@ -262,46 +273,280 @@
     /* 指标卡 */
     $('#cpuNum').textContent = Math.round(state.cpu);
     $('#gpuNum').textContent = Math.round(state.gpu);
-    $('#fanNum').textContent = fmt(state.fan);
-    $('#memNum').textContent = (state.mem / 100 * 32).toFixed(1);
+    $('#fanNum').textContent = state.fan == null ? '—' : fmt(state.fan);
+    $('#memNum').textContent = state.memGB.toFixed(1);
 
-    $('#cpuTempChip').textContent = `${Math.round(state.cpuTemp)}°C`;
-    $('#gpuTempChip').textContent = `${Math.round(state.gpuTemp)}°C`;
+    $('#cpuTempChip').textContent = showTemp(state.cpuTemp);
+    $('#gpuTempChip').textContent = showTemp(state.gpuTemp);
     $('#memChip').textContent = `${Math.round(state.mem)}%`;
+    if ($('#cpuClock')) $('#cpuClock').textContent = state.cpuClock ? `${(state.cpuClock / 1000).toFixed(2)} GHz` : '—';
+    if ($('#gpuClock')) $('#gpuClock').textContent = state.gpuClock ? `${state.gpuClock} MHz` : '—';
+    if ($('#memTotal')) $('#memTotal').textContent = `${Math.round(state.memTotalGB)} GB`;
 
     /* 侧栏 */
-    $('#miniCpu').textContent = `${Math.round(state.cpuTemp)}°`;
-    $('#miniGpu').textContent = `${Math.round(state.gpuTemp)}°`;
-    $('#miniFan').textContent = fmt(state.fan);
+    $('#miniCpu').textContent = state.cpuTemp == null ? '—' : `${Math.round(state.cpuTemp)}°`;
+    $('#miniGpu').textContent = state.gpuTemp == null ? '—' : `${Math.round(state.gpuTemp)}°`;
+    $('#miniFan').textContent = state.fan == null ? '—' : fmt(state.fan);
 
     /* 性能面板底栏 */
-    $('#pfFan').textContent = fmt(state.fan);
-    $('#pfPower').textContent = Math.round(state.power);
-    const head = state.cpuTemp < 72 ? '充足' : state.cpuTemp < 83 ? '适中' : '紧张';
+    $('#pfFan').textContent = state.fan == null ? '—' : fmt(state.fan);
+    $('#pfPower').textContent = state.power == null ? '—' : Math.round(state.power);
+    const head = state.cpuTemp == null ? '未知' : state.cpuTemp < 72 ? '充足' : state.cpuTemp < 83 ? '适中' : '紧张';
     $('#pfHeadroom').textContent = head;
     $('#pfHeadroom').classList.toggle('ok', head === '充足');
-    $('#pfHeadroom').style.color = head === '充足' ? 'var(--jade)' : head === '适中' ? 'var(--gold)' : 'var(--cinnabar)';
+    $('#pfHeadroom').style.color = head === '充足' ? 'var(--jade)' : head === '适中' ? 'var(--gold)' : head === '未知' ? 'var(--faint)' : 'var(--cinnabar)';
 
     /* 性能页温度条 */
     if ($('#tempCpu')) {
-      $('#tempCpu').textContent = `${Math.round(state.cpuTemp)}°C`;
-      $('#tempGpu').textContent = `${Math.round(state.gpuTemp)}°C`;
-      $('#barCpu').style.width = `${state.cpuTemp}%`;
-      $('#barGpu').style.width = `${state.gpuTemp}%`;
+      $('#tempCpu').textContent = showTemp(state.cpuTemp);
+      $('#tempGpu').textContent = showTemp(state.gpuTemp);
+      $('#barCpu').style.width = `${state.cpuTemp ?? 0}%`;
+      $('#barGpu').style.width = `${state.gpuTemp ?? 0}%`;
     }
 
     /* 设备页监控 */
     if ($('#monCpu')) {
-      $('#monCpu').textContent = `${Math.round(state.cpuTemp)}°C`;
-      $('#monGpu').textContent = `${Math.round(state.gpuTemp)}°C`;
-      $('#monCpuBar').style.width = `${state.cpuTemp}%`;
-      $('#monGpuBar').style.width = `${state.gpuTemp}%`;
+      $('#monCpu').textContent = showTemp(state.cpuTemp);
+      $('#monGpu').textContent = showTemp(state.gpuTemp);
+      $('#monCpuBar').style.width = `${state.cpuTemp ?? 0}%`;
+      $('#monGpuBar').style.width = `${state.gpuTemp ?? 0}%`;
+      if ($('#monMem')) {
+        $('#monMem').textContent = `${state.memGB.toFixed(1)} / ${Math.round(state.memTotalGB)} GB`;
+        $('#monMemBar').style.width = `${Math.round(state.mem)}%`;
+      }
     }
 
     const perfFoot = $('#cardPerf');
-    if (perfFoot) perfFoot.textContent = `CPU ${Math.round(state.cpuTemp)}°C · GPU ${Math.round(state.gpuTemp)}°C`;
+    if (perfFoot) perfFoot.textContent = `CPU ${showTemp(state.cpuTemp)} · GPU ${showTemp(state.gpuTemp)}`;
 
     drawAll();
+  }
+
+  /* ------------------------------------------------------------
+     桌面版：真实遥测
+     ------------------------------------------------------------ */
+  function pushSeries(key, value) {
+    const s = state.series[key];
+    if (!s) return;
+    if (value == null || !Number.isFinite(value)) return;
+    s.push(value);
+    while (s.length > 60) s.shift();
+  }
+
+  function applyTelemetry(d) {
+    if (!d) return;
+    if (d.cpu) {
+      state.cpu = d.cpu.usage;
+      state.cpuClock = d.cpu.clock;
+    }
+    if (d.mem) {
+      const totalGB = gib(d.mem.total);
+      state.memTotalGB = totalGB;
+      state.memGB = gib(d.mem.used);
+      state.mem = (d.mem.used / d.mem.total) * 100;
+    }
+    if (d.gpu && d.gpu.ok) {
+      state.gpu = d.gpu.util ?? 0;
+      state.gpuTemp = d.gpu.temp ?? null;
+      state.gpuClock = d.gpu.clock ?? null;
+      state.power = d.gpu.power ?? null;
+    }
+    if (d.battery) {
+      state.battery = d.battery;
+      applyBattery(d.battery.charge);
+    }
+    pushSeries('cpu', state.cpu);
+    pushSeries('gpu', state.gpu);
+    pushSeries('mem', state.mem);
+    pushSeries('fan', state.fan);
+    render();
+  }
+
+  let realInfo = null;
+  let realBattInfo = null;
+
+  function applyDevice(info) {
+    if (!info) {
+      const sub = $('#pageSub');
+      if (sub) sub.textContent = '无法读取设备信息';
+      return;
+    }
+    realInfo = info;
+    const model = (info.system || '').replace(/^MECHREVO\s*\/\s*/i, '');
+    const nameEl = $('#deviceName');
+    if (nameEl) nameEl.textContent = model.replace(/\s+Series.*$/i, '') || 'MECHREVO';
+    const sub = $('#pageSub');
+    if (sub) sub.textContent = `${model} · ${info.cpu?.replace(/\(R\)|\(TM\)|CPU @.*$/g, '').trim()} · ${info.gpu || '—'}`;
+    const set = (id, v) => { const el = $(`#${id}`); if (el) el.textContent = v || '—'; };
+    set('devTitle', info.system);
+    set('devModel', info.system);
+    set('devCPU', `${info.cpu} · ${info.cores} 核 ${info.threads} 线程`);
+    set('devGPU', info.gpu);
+    set('devRAM', `${info.ramGB} GB · 双通道`);
+    set('devBios', `${info.bios} · ${info.biosDate}`);
+    set('devBoard', info.board);
+    set('devOS', info.os);
+    set('drvGpu', info.gpuDriver);
+    if (info.diskTotal) {
+      const used = info.diskTotal - (info.diskFree || 0);
+      set('devStorage', `${used.toFixed(0)} / ${Math.round(info.diskTotal)} GB 已用`);
+      const monDisk = $('#monDisk');
+      if (monDisk) {
+        monDisk.textContent = `${used.toFixed(0)} / ${Math.round(info.diskTotal)} GB`;
+        $('#monDiskBar').style.width = `${Math.round(used / info.diskTotal * 100)}%`;
+      }
+    }
+    /* 真实屏幕参数 */
+    const dispSub = $('#view-display .page-sub');
+    if (dispSub && info.screenW) {
+      const inch = info.screenW >= 3000 ? '超清' : info.screenW >= 2560 ? '2.5K' : info.screenW >= 1920 ? 'FHD' : '标准';
+      dispSub.textContent = `${inch} ${info.screenW}×${info.screenH} · ${info.refresh}Hz${info.panel ? ' · ' + info.panel : ''}`;
+    }
+    const dispChip = $('#dispChip');
+    if (dispChip) dispChip.textContent = info.refresh ? `${info.refresh}Hz 当前` : '—';
+
+    /* 首页卡片：同样接真实值，不写死 */
+    set('cardDevChip', info.bios ? '已识别' : '—');
+    set('cardDevSub', info.bios ? `BIOS ${(info.bios.match(/\S+$/) || ['—'])[0]}` : '—');
+    if (info.refresh) set('cardDispHz', `${info.refresh}Hz`);
+    if (info.screenW) set('cardDispSub', `${info.screenW}×${info.screenH}${info.panel ? ' · ' + info.panel : ''}`);
+  }
+
+  function applyBattery(charge, info) {
+    const pct = charge == null ? null : Math.round(charge);
+    const pctEl = $('#battPct');
+    if (pctEl && pct != null) pctEl.textContent = pct;
+    if (pct != null) {
+      const ring = $('#ringFill');
+      if (ring) ring.style.strokeDashoffset = `${518 - 518 * (pct / 100)}`;
+    }
+    /* 首页电池卡 */
+    if (pct != null) {
+      const cc = $('#cardBattPct');
+      if (cc) cc.textContent = `${pct}%`;
+      const cb = $('#cardBattBar');
+      if (cb) cb.style.width = `${pct}%`;
+    }
+    if (info) {
+      realBattInfo = info;
+      const design = info.design; // mWh
+      const full = info.full;
+      if (design && full) {
+        const health = Math.round(full / design * 100);
+        $('#battHealth').textContent = `${health}%`;
+        $('#battDesign').textContent = `${(design / 1000).toFixed(1)} Wh`;
+        $('#battFull').textContent = `${(full / 1000).toFixed(1)} Wh`;
+        $('#battSub').textContent = health < 80 ? '容量衰减明显' : '电池状态正常';
+        const cf = $('#cardBattFoot');
+        if (cf) cf.textContent = `健康度 ${health}% · 设计 ${(design / 1000).toFixed(0)}Wh`;
+      }
+      $('#battCycles').textContent = info.cycles ? `${info.cycles} 次` : '未上报';
+    }
+    if (charge == null) {
+      $('#battSub').textContent = '本机无电池或未上报';
+    } else if (state.battery && state.battery.status) {
+      const onAC = state.battery.status !== 1;
+      const chip = $('#view-battery .page-head .mini-chip');
+      if (chip) chip.textContent = onAC ? '已接入电源' : '使用电池';
+    }
+  }
+
+  /* 桌面版：锁定本机无法实现的控件（诚实标注，不假装生效） */
+  function markLocked() {
+    $$('[data-lock]').forEach(el => {
+      el.classList.add('vendor-locked');
+      const head = el.querySelector('.panel-head') || el.querySelector('.page-head');
+      if (head && !head.querySelector('.lock-chip')) {
+        const chip = document.createElement('span');
+        chip.className = 'mini-chip lock-chip';
+        chip.textContent = `需厂商驱动 · ${el.dataset.lock}`;
+        chip.title = '本机未安装机械革命控制中心；该功能依赖 EC / WMI 厂商接口，第三方程序无法直接控制。';
+        head.appendChild(chip);
+      }
+    });
+    $$('[data-demo]').forEach(el => el.remove());
+  }
+
+  /* 窗口控制（仅桌面版显示） */
+  if (desktop) {
+    const wc = $('#winControls');
+    if (wc) {
+      wc.hidden = false;
+      wc.querySelector('[data-win="min"]')?.addEventListener('click', () => desktop.minimize());
+      wc.querySelector('[data-win="max"]')?.addEventListener('click', () => desktop.toggleMaximize());
+      wc.querySelector('[data-win="close"]')?.addEventListener('click', () => desktop.close());
+    }
+    desktop.onTelemetry(applyTelemetry);
+    desktop.device().then(info => { applyDevice(info); }).catch(() => {});
+
+    /* 电池真实容量 */
+    desktop.batteryInfo().then(info => {
+      if (info) applyBattery(state.battery ? state.battery.charge : null, info);
+    }).catch(() => {});
+
+    /* 屏幕亮度：读取当前值并接入真实控制 */
+    const brightInput = $('#displayBright');
+    let brightTimer = null;
+    desktop.getBrightness().then(v => {
+      if (v == null || !brightInput) return;
+      brightInput.value = v;
+      brightInput.style.setProperty('--p', `${v}%`);
+      $('#brightDisplayLabel').textContent = `${v}%`;
+    }).catch(() => {});
+    brightInput?.addEventListener('input', e => {
+      const v = +e.target.value;
+      $('#brightDisplayLabel').textContent = `${v}%`;
+      clearTimeout(brightTimer);
+      brightTimer = setTimeout(() => desktop.setBrightness(v).catch(() => {}), 120);
+    });
+
+    /* 电源方案：读取当前实际方案并同步 UI */
+    desktop.getPowerPlan().then(r => {
+      if (!r || !r.ok) return;
+      const map = {
+        'a1841308-3541-4fab-bc81-f71556f20b4a': 'quiet',
+        '381b4222-f694-41f0-9685-ff5bb260df2e': 'balanced',
+        '8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c': 'turbo',
+      };
+      const mode = map[(r.guid || '').toLowerCase()];
+      if (mode) setMode(mode, true);
+      const pf = $('#pfMode');
+      if (pf && !mode) pf.textContent = r.name || '—';
+    }).catch(() => {});
+
+    markLocked();
+
+    /* 被锁面板里的滑杆直接禁用，避免看起来能调实际无效 */
+    $$('[data-lock] input[type="range"]').forEach(inp => { inp.disabled = true; });
+
+    /* 色温需要显卡驱动级校色（ICC / 厂商工具），本应用不改系统色彩配置 */
+    const ct = $('#colorTemp');
+    if (ct) {
+      ct.disabled = true;
+      const lab = ct.closest('.slider-row')?.querySelector('label');
+      if (lab && !lab.querySelector('.na-tag')) {
+        lab.insertAdjacentHTML('beforeend', ' <span class="na-tag">需校色驱动</span>');
+      }
+    }
+
+    /* 刷新率：用本机真实支持的模式重建选项 */
+    desktop.displayModes().then(r => {
+      const seg = $('#refreshSeg');
+      if (!seg) return;
+      if (!r || !r.ok) { seg.innerHTML = '<span class="na-tag">无法读取显示模式</span>'; return; }
+      const freqs = [...new Set(
+        r.modes.filter(m => m.w === r.current.w && m.h === r.current.h).map(m => m.hz)
+      )].sort((a, b) => a - b);
+      if (!freqs.length) { seg.innerHTML = '<span class="na-tag">无可用模式</span>'; return; }
+      seg.innerHTML = freqs
+        .map(hz => `<button data-hz="${hz}"${hz === r.current.hz ? ' class="active"' : ''}>${hz}Hz</button>`)
+        .join('');
+    }).catch(() => {
+      const seg = $('#refreshSeg');
+      if (seg) seg.innerHTML = '<span class="na-tag">无法读取显示模式</span>';
+    });
+
+    $('#miniFan')?.setAttribute('title', '需要厂商 EC 或 LibreHardwareMonitor 才能读取风扇转速');
   }
 
   /* ------------------------------------------------------------
@@ -322,7 +567,17 @@
     const quickMap = { quiet: 'office', balanced: 'balanced', turbo: 'game' };
     $$('.quick-card').forEach(c => c.classList.toggle('active', c.dataset.quick === quickMap[mode]));
 
-    if (!silent) toast(`已切换至${MODES[mode].name}模式`);
+    if (silent) return;
+
+    if (desktop) {
+      /* 桌面版：真的切换 Windows 电源方案 */
+      desktop.setPowerPlan(mode).then(r => {
+        if (r && r.ok) toast(`已切换至${MODES[mode].name}模式 · 电源方案：${r.plan.name}`);
+        else toast('电源方案切换失败，请检查系统权限');
+      }).catch(() => toast('电源方案切换失败'));
+      return;
+    }
+    toast(`已切换至${MODES[mode].name}模式`);
   }
 
   modeSegs.forEach(seg => {
@@ -335,8 +590,15 @@
 
   $('#boostBtn').addEventListener('click', () => {
     setMode('turbo');
-    toast('一键狂暴：功耗墙已解除，散热已全速');
+    if (!desktop) toast('一键狂暴：功耗墙已解除，散热已全速');
   });
+
+  /* 本机无法通过第三方接口实现的功能：诚实提示，不假装生效 */
+  const VENDOR_MSG = '本机未安装厂商控制中心，键盘灯 / 风扇 / 充电阈值需要 EC 驱动，当前无法控制';
+  function vendorOnly(label) {
+    if (desktop) toast(`${label}需要厂商 EC 驱动，本机不可用`);
+    else toast(`${label}为演示项`);
+  }
 
   $$('.quick-card').forEach(card => {
     card.addEventListener('click', () => {
@@ -352,6 +614,11 @@
   $$('[data-switch]').forEach(sw => {
     sw.addEventListener('click', e => {
       e.stopPropagation();
+      const locked = sw.closest('[data-lock]');
+      if (desktop && locked) {
+        toast(`${locked.dataset.lock}需要厂商 EC 驱动，本机不可用`);
+        return;
+      }
       sw.classList.toggle('on');
       if (sw.id === 'lightMaster') {
         state.lighting.on = sw.classList.contains('on');
@@ -375,12 +642,14 @@
   });
 
   $('#chargeLimit').addEventListener('input', e => {
+    if (desktop) { toast('充电阈值需要厂商 EC 驱动，本机不可用'); return; }
     $('#limitLabel').textContent = `${e.target.value}%`;
     const on = +e.target.value < 100;
     $('#chargeLimitSwitch').classList.toggle('on', on);
   });
 
   $('#chargeLimitSwitch').addEventListener('click', () => {
+    if (desktop) { toast('充电阈值需要厂商 EC 驱动，本机不可用'); return; }
     const on = $('#chargeLimitSwitch').classList.contains('on');
     const range = $('#chargeLimit');
     range.value = on ? 80 : 100;
@@ -399,18 +668,31 @@
   });
 
   const TEMP_NAMES = v => v < 5800 ? '暖' : v <= 7000 ? '标准' : '冷';
-  $('#colorTemp').addEventListener('input', e => {
+  $('#colorTemp')?.addEventListener('input', e => {
     let v = +e.target.value;
     v = Math.round(v / 50) * 50;
     $('#tempLabel').textContent = `${TEMP_NAMES(v)} ${v}K`;
   });
-
   /* ------------------------------------------------------------
      刷新率 / 色彩模式
      ------------------------------------------------------------ */
   $('#refreshSeg')?.addEventListener('click', e => {
     const b = e.target.closest('button[data-hz]');
     if (!b) return;
+    if (desktop) {
+      const hz = +b.dataset.hz;
+      desktop.setRefresh(hz).then(r => {
+        if (r && r.ok) {
+          $$('#refreshSeg button').forEach(x => x.classList.toggle('active', x === b));
+          toast(`刷新率已切换为 ${hz}Hz（已生效）`);
+          const chip = $('#dispChip');
+          if (chip) chip.textContent = `${hz}Hz 当前`;
+        } else {
+          toast(`本机当前分辨率不支持 ${hz}Hz`);
+        }
+      }).catch(() => toast('刷新率切换失败'));
+      return;
+    }
     $$('#refreshSeg button').forEach(x => x.classList.toggle('active', x === b));
     $$('.fcard[data-view="display"] .mini-chip').forEach(c => c.textContent = `${b.dataset.hz}Hz`);
     toast(`刷新率已切换为 ${b.dataset.hz}Hz`);
@@ -419,6 +701,7 @@
   $('#colorModes')?.addEventListener('click', e => {
     const b = e.target.closest('.mode-card');
     if (!b) return;
+    if (desktop) { toast('色彩模式需要厂商显示驱动，本机不可用'); return; }
     $$('#colorModes .mode-card').forEach(x => x.classList.toggle('active', x === b));
     toast(`色彩模式：${b.querySelector('b').textContent}`);
   });
@@ -589,6 +872,7 @@
   let appCursor = 0;
 
   $('#addBindBtn')?.addEventListener('click', () => {
+    if (desktop) { toast('应用绑定需要厂商 EC 驱动，本机不可用'); return; }
     const [ico, name, mode] = APPS[appCursor % APPS.length];
     appCursor++;
     const row = document.createElement('div');
@@ -611,6 +895,10 @@
      电池
      ------------------------------------------------------------ */
   $('#calibrateBtn')?.addEventListener('click', e => {
+    if (desktop) {
+      toast('电池校准需要厂商 EC 固件与完整充放电流程，本应用不执行');
+      return;
+    }
     const btn = e.currentTarget;
     btn.disabled = true;
     btn.textContent = '校准中…';
@@ -625,7 +913,19 @@
      设备信息 / 复制
      ------------------------------------------------------------ */
   $('#copyInfoBtn')?.addEventListener('click', async () => {
-    const text = [
+    const i = realInfo;
+    const lines = i ? [
+      `机型: ${i.system || '—'}`,
+      `主板: ${i.board || '—'}`,
+      `CPU: ${i.cpu || '—'} (${i.cores} 核 ${i.threads} 线程)`,
+      `GPU: ${i.gpu || '—'} · 驱动 ${i.gpuDriver || '—'}`,
+      `内存: ${i.ramGB} GB`,
+      `存储: ${i.diskTotal ? `${(i.diskTotal - (i.diskFree || 0)).toFixed(0)} / ${Math.round(i.diskTotal)} GB 已用` : '—'}`,
+      `屏幕: ${i.screenW ? `${i.screenW}×${i.screenH} @ ${i.refresh}Hz` : '—'}`,
+      `BIOS: ${i.bios || '—'} (${i.biosDate || '—'})`,
+      `系统: ${i.os || '—'}`,
+      ...(realBattInfo ? [`电池: 设计 ${(realBattInfo.design / 1000).toFixed(1)} Wh · 满充 ${(realBattInfo.full / 1000).toFixed(1)} Wh`] : []),
+    ] : [
       'MECHREVO 极光 Pro 16',
       'CPU: Intel Core i9-14900HX',
       'GPU: NVIDIA RTX 4070 Laptop 8GB',
@@ -634,28 +934,44 @@
       'BIOS: 1.24',
       '序列号: MR16-2025-08-0412',
       '系统: Windows 11 家庭中文版 23H2'
-    ].join('\n');
+    ];
     try {
-      await navigator.clipboard.writeText(text);
-      toast('设备信息已复制');
+      await navigator.clipboard.writeText(lines.join('\n'));
+      toast(desktop ? '真实设备信息已复制' : '设备信息已复制');
     } catch {
-      toast('复制失败，请检查浏览器权限');
+      toast('复制失败，请检查剪贴板权限');
     }
   });
 
   $('#checkupBtn')?.addEventListener('click', e => {
+    if (desktop) {
+      const parts = [];
+      if (state.gpuTemp != null) parts.push(`GPU ${Math.round(state.gpuTemp)}°C`);
+      if (state.cpu.usage != null) parts.push(`CPU 负载 ${Math.round(state.cpu.usage)}%`);
+      if (state.memGB != null) parts.push(`内存 ${state.memGB.toFixed(1)} / ${Math.round(state.memTotalGB)} GB`);
+      if (realBattInfo && realBattInfo.design) {
+        parts.push(`电池健康 ${Math.round(realBattInfo.full / realBattInfo.design * 100)}%`);
+      }
+      parts.push('CPU 温度 / 风扇转速本机无法读取');
+      toast(`体检：${parts.join(' · ')}`);
+      return;
+    }
     const btn = e.currentTarget;
     btn.disabled = true;
     const old = btn.textContent;
     btn.textContent = '检测中…';
     setTimeout(() => {
       btn.disabled = false;
-      btn.textContent = old;
+      btn.textContent = '一键检测';
       toast(`体检完成：温度 ${Math.round(state.cpuTemp)}°C，风扇 ${fmt(state.fan)} RPM，电池健康 96%`);
     }, 1100);
   });
 
   $('#optimizeBtn')?.addEventListener('click', e => {
+    if (desktop) {
+      toast('系统优化需要管理员权限与清理策略，本应用不擅自删除任何文件');
+      return;
+    }
     const btn = e.currentTarget;
     btn.disabled = true;
     const old = btn.textContent;
