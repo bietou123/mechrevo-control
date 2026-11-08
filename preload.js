@@ -25,4 +25,6 @@ contextBridge.exposeInMainWorld('desktop', {
   getMode: () => ipcRenderer.invoke('hw:getMode'),
   setMode: (mode) => ipcRenderer.invoke('hw:setMode', mode),
   readEc: (addr) => ipcRenderer.invoke('hw:raw', addr),
+  setKeyboardLevel: (level) => ipcRenderer.invoke('hw:setKeyboard', level),
+  setChargeLimit: (up, down) => ipcRenderer.invoke('hw:setCharge', up, down),
 });

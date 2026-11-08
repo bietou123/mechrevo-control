@@ -346,7 +346,7 @@
       </section>
 
       <!-- ============ 灯光 ============ -->
-      <section class="view" id="view-lighting" data-lock="键盘灯控制">
+      <section class="view" id="view-lighting">
         <header class="page-head">
           <div>
             <p class="eyebrow">Lighting</p>
@@ -358,7 +358,7 @@
 
         <div class="split">
           <section class="panel">
-            <div class="panel-head"><div><h2>键区预览</h2><p>当前灯效实时预览</p></div><span class="mini-chip" id="effectChip">呼吸</span></div>
+            <div class="panel-head"><div><h2>键区预览</h2><p>当前背光档位示意</p></div><span class="mini-chip" id="effectChip">高</span></div>
             <div class="keyboard" id="keyboard">
               <div class="kb-row" data-row="0"></div>
               <div class="kb-row" data-row="1"></div>
@@ -368,48 +368,61 @@
             </div>
             <div class="kb-foot">
               <span>仅示意键位布局</span>
-              <span>亮度 <b id="kbBrightLabel">70%</b></span>
+              <span>档位 <b id="kbBrightLabel">高</b></span>
             </div>
           </section>
 
-          <section class="panel">
-            <div class="panel-head"><div><h2>灯效控制</h2><p>键盘 / 品牌灯 / 底部灯带</p></div></div>
+          <section class="panel" id="kbRealPanel">
+            <div class="panel-head"><div><h2>键盘背光</h2><p>单色 · 三档 · 写入 EC 真实生效</p></div><span class="mini-chip" id="kbLiveChip">—</span></div>
             <div class="ctrl-block">
-              <label class="ctrl-label">灯效模式</label>
-              <div class="segmented wrap" id="effectSeg">
-                <button data-effect="static" class="active">静态</button>
-                <button data-effect="breath">呼吸</button>
-                <button data-effect="wave">波浪</button>
-                <button data-effect="rainbow">彩虹</button>
-                <button data-effect="audio">随声</button>
+              <label class="ctrl-label">亮度档位</label>
+              <div class="segmented" id="kbLevelSeg">
+                <button data-kb="0">关</button>
+                <button data-kb="1">低</button>
+                <button data-kb="2" class="active">高</button>
               </div>
             </div>
-            <div class="ctrl-block">
-              <label class="ctrl-label">颜色</label>
-              <div class="swatches" id="swatches">
-                <button class="swatch active" style="--c:#d4af6a" data-color="#d4af6a" title="暖金"></button>
-                <button class="swatch" style="--c:#c05a45" data-color="#c05a45" title="朱砂"></button>
-                <button class="swatch" style="--c:#7fae8a" data-color="#7fae8a" title="青玉"></button>
-                <button class="swatch" style="--c:#7d92b8" data-color="#7d92b8" title="雾蓝"></button>
-                <button class="swatch" style="--c:#e8e2d4" data-color="#e8e2d4" title="月白"></button>
-                <button class="swatch" style="--c:#c9a0dc" data-color="#c9a0dc" title="紫藤"></button>
-                <input type="color" id="customColor" class="color-input" value="#d4af6a" title="自定义颜色">
-              </div>
-            </div>
-            <div class="ctrl-block">
-              <label class="ctrl-label">亮度</label>
-              <div class="slider-row"><input type="range" id="brightRange" min="10" max="100" value="70" style="--p:63%"></div>
-            </div>
-            <div class="ctrl-block">
-              <label class="ctrl-label">亮度区域</label>
-              <div class="toggle-list">
-                <div class="toggle-row"><span>键盘背光</span><span class="mini-switch on" data-switch></span></div>
-                <div class="toggle-row"><span>品牌 Logo 灯</span><span class="mini-switch on" data-switch></span></div>
-                <div class="toggle-row"><span>底部氛围灯带</span><span class="mini-switch" data-switch></span></div>
-              </div>
-            </div>
+            <p class="panel-tip" id="kbRealTip">EC 1932 = 0x80 | 档位（128 关 / 129 低 / 130 高）；写入后立即读回校验，不符自动回滚。</p>
           </section>
         </div>
+
+        <section class="panel" data-lock="RGB 灯效">
+          <div class="panel-head"><div><h2>灯效控制</h2><p>键盘 / 品牌灯 / 底部灯带</p></div></div>
+          <div class="ctrl-block">
+            <label class="ctrl-label">灯效模式</label>
+            <div class="segmented wrap" id="effectSeg">
+              <button data-effect="static" class="active">静态</button>
+              <button data-effect="breath">呼吸</button>
+              <button data-effect="wave">波浪</button>
+              <button data-effect="rainbow">彩虹</button>
+              <button data-effect="audio">随声</button>
+            </div>
+          </div>
+          <div class="ctrl-block">
+            <label class="ctrl-label">颜色</label>
+            <div class="swatches" id="swatches">
+              <button class="swatch active" style="--c:#d4af6a" data-color="#d4af6a" title="暖金"></button>
+              <button class="swatch" style="--c:#c05a45" data-color="#c05a45" title="朱砂"></button>
+              <button class="swatch" style="--c:#7fae8a" data-color="#7fae8a" title="青玉"></button>
+              <button class="swatch" style="--c:#7d92b8" data-color="#7d92b8" title="雾蓝"></button>
+              <button class="swatch" style="--c:#e8e2d4" data-color="#e8e2d4" title="月白"></button>
+              <button class="swatch" style="--c:#c9a0dc" data-color="#c9a0dc" title="紫藤"></button>
+              <input type="color" id="customColor" class="color-input" value="#d4af6a" title="自定义颜色">
+            </div>
+          </div>
+          <div class="ctrl-block">
+            <label class="ctrl-label">亮度</label>
+            <div class="slider-row"><input type="range" id="brightRange" min="10" max="100" value="70" style="--p:63%"></div>
+          </div>
+          <div class="ctrl-block">
+            <label class="ctrl-label">亮度区域</label>
+            <div class="toggle-list">
+              <div class="toggle-row"><span>键盘背光</span><span class="mini-switch on" data-switch></span></div>
+              <div class="toggle-row"><span>品牌 Logo 灯</span><span class="mini-switch on" data-switch></span></div>
+              <div class="toggle-row"><span>底部氛围灯带</span><span class="mini-switch" data-switch></span></div>
+            </div>
+          </div>
+        </section>
       </section>
 
       <!-- ============ 电池 ============ -->
@@ -444,19 +457,19 @@
             </div>
           </section>
 
-          <section class="panel" data-lock="充电阈值">
-            <div class="panel-head"><div><h2>充电保护</h2><p>延长电池寿命</p></div><span class="switch wide on" data-switch id="chargeLimitSwitch"><i></i></span></div>
+          <section class="panel" id="chargePanel">
+            <div class="panel-head"><div><h2>充电保护</h2><p>延长电池寿命</p></div><span class="switch wide" data-switch id="chargeLimitSwitch"><i></i></span></div>
             <div class="ctrl-block">
-              <label class="ctrl-label">充电上限 <b id="limitLabel">80%</b></label>
-              <div class="slider-row"><input type="range" id="chargeLimit" min="50" max="100" value="80" style="--p:60%"></div>
-              <p class="panel-tip">长期插电使用建议限制在 80%，可显著减缓容量衰减。</p>
+              <label class="ctrl-label">充电上限 <b id="limitLabel">不限</b></label>
+              <div class="slider-row"><input type="range" id="chargeLimit" min="50" max="100" value="100" style="--p:100%"></div>
+              <p class="panel-tip" id="chargeTip">写 EC 1977 = 上限（100 = 不限）、2000 = 恢复阈值；写后立即读回校验。</p>
             </div>
-            <div class="toggle-list">
+            <div class="toggle-list" data-demo>
               <div class="toggle-row"><span>智能充电（学习使用习惯）</span><span class="mini-switch on" data-switch></span></div>
               <div class="toggle-row"><span>低电量自动省电</span><span class="mini-switch on" data-switch></span></div>
               <div class="toggle-row"><span>电池校准提醒</span><span class="mini-switch" data-switch></span></div>
             </div>
-            <button class="btn ghost wide-btn" id="calibrateBtn">开始电池校准</button>
+            <button class="btn ghost wide-btn" id="calibrateBtn" data-demo>开始电池校准</button>
           </section>
         </div>
 

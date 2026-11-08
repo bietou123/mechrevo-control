@@ -37,7 +37,9 @@
     },
     lighting: {
       on: true, effect: 'static', color: '#d4af6a', brightness: 70
-    }
+    },
+    /* EC 写入通道是否就绪（后端 WriteEC 已加载） */
+    ecWritable: false
   };
 
   /* 初始化 60 个历史点（仅浏览器预览的模拟模式） */
@@ -468,11 +470,11 @@
   }
 
   /* 桌面版：锁定本机确实无法实现的控件（诚实标注，不假装生效）
-     已确认可用的不再锁定：档位切换、风扇转速/占空比读取、屏幕亮度、刷新率、电池容量 */
+     已确认可用的不再锁定：档位切换、风扇转速/占空比读取、键盘背光三档、
+     充电上限、屏幕亮度、刷新率、电池容量 */
   const LOCK_INFO = {
     '风扇控制': '转速可实时读取；自定义曲线需写 EC，本应用不写入',
-    '键盘灯控制': '本机为单色键盘灯 OSD 模式：官方服务只读状态、不提供写接口',
-    '充电阈值': '官方控制中心未启用电池保护模块，设置通道为空',
+    'RGB 灯效': '本机键盘为单色背光（EC 只有一档亮度），没有 RGB 分区/颜色寄存器可用',
     '应用绑定': '需常驻的应用监控服务，本应用不实现',
     '色彩模式': '需厂商 RGB 灯控服务（本机未提供）',
     '色彩校正': '需显卡级 ICC 校色，本应用不改系统色彩配置',
@@ -497,35 +499,28 @@
     $$('[data-demo]').forEach(el => el.remove());
   }
 
-  /* 把 EC 只读数据的真实含义填进界面，避免「有数字但不知道是什么」 */
+  /* 把 EC 真实数据的含义填进界面 */
   function fillHwMeta() {
     const hw = state.hw;
     if (!hw) return;
 
-    /* 键盘灯：本机是单色 OSD 模式，EC 只有一个亮度级别 */
-    const chip = $('#effectChip');
-    if (chip) {
-      chip.textContent = `单色 · 亮度 ${hw.kbLight}`;
-      chip.title = `EC 1932 = ${hw.kbLight}（0–255）；本机无 RGB 分区控制`;
-    }
-    const kbTip = $('#view-lighting .panel-tip');
+    /* 键盘背光：单色三档，EC 1932 = 0x80 | 档位 */
+    applyKbLevel(hw.kbLevel);
+    const kbTip = $('#kbRealTip');
     if (kbTip) {
-      const b = state.keyboard && state.keyboard.brightness;
       kbTip.textContent =
-        `本机键盘为单色背光：官方服务只读状态${b != null ? `（当前亮度 ${b}）` : ''}，` +
-        `实际由 EC 固件随 Fn 扫描码调整，不提供写接口。`;
+        `EC 1932 = ${hw.kbLight}（0x${(hw.kbLight >>> 0).toString(16).toUpperCase()}） · ` +
+        `档位 ${hw.kbLevel != null ? hw.kbLevel : '未知'}；写入后立即读回校验，不符自动回滚。`;
     }
 
-    /* 充电阈值：EC 寄存器常年为 0，官方服务未启用该模块 */
+    /* 充电阈值：EC 1977 上限 / 2000 恢复阈值 */
     const c = state.chargeInfo;
-    const lim = $('#limitLabel');
-    if (lim && c) {
-      lim.textContent = (c.ecUp || c.ecDown) ? `${c.ecUp}%` : '未启用';
-      lim.title = `EC 1977=${c.ecUp} · 2000=${c.ecDown}`;
-    }
-    const chgTip = $('#view-battery .panel[data-lock] .panel-tip');
+    if (c) applyChargeLimitUI(c.limit);
+    const chgTip = $('#chargeTip');
     if (chgTip && c) {
-      chgTip.textContent = `${c.reason}（EC 1977=${c.ecUp} · 2000=${c.ecDown}）`;
+      chgTip.textContent =
+        `EC 1977 = ${c.ecUp}（上限）· 2000 = ${c.ecDown}（恢复阈值）。` +
+        `写入后立即读回校验；100 = 不限充电。`;
     }
 
     /* 风扇：两把风扇的真实读数 */
@@ -535,6 +530,75 @@
         `EC 实时：主扇 ${hw.fan1} RPM · 副扇 ${hw.fan2} RPM · 占空比 ${hw.duty1}/255、${hw.duty2}/255。` +
         `自定义曲线需写 EC，本应用只读。`;
     }
+  }
+
+  /* 键盘档位 → 界面（含键区预览亮度） */
+  const KB_GLOW = [0, 42, 78];
+  function applyKbLevel(level) {
+    if (level == null) return;
+    const lv = Math.max(0, Math.min(2, level));
+    const name = ['关', '低', '高'][lv];
+    state.lighting.on = lv > 0;
+    state.lighting.level = lv;
+    if (lv > 0) state.lighting.lastLevel = lv;
+    state.lighting.brightness = KB_GLOW[lv];
+    $$('#kbLevelSeg button').forEach(b => b.classList.toggle('active', +b.dataset.kb === lv));
+    const chip = $('#kbLiveChip');
+    if (chip) {
+      chip.textContent = name;
+      chip.classList.toggle('on', lv > 0);
+      chip.title = `EC 1932 = ${128 + lv}`;
+    }
+    const ec = $('#effectChip');
+    if (ec) { ec.textContent = name; ec.title = `EC 1932 = ${128 + lv}（单色键盘，无 RGB 分区）`; }
+    const lbl = $('#kbBrightLabel');
+    if (lbl) lbl.textContent = name;
+    const master = $('#lightMaster');
+    if (master) master.classList.toggle('on', lv > 0);
+    applyKeyboard();
+  }
+
+  /* 充电上限 → 界面（100 = 不限） */
+  function applyChargeLimitUI(limit) {
+    const v = limit == null ? 100 : limit;
+    const range = $('#chargeLimit');
+    if (range && +range.value !== v) { range.value = v; syncRange(range); }
+    const lbl = $('#limitLabel');
+    if (lbl) lbl.textContent = v >= 100 ? '不限' : `${v}%`;
+    const sw = $('#chargeLimitSwitch');
+    if (sw) sw.classList.toggle('on', v < 100);
+  }
+
+  function setKbLevel(lv) {
+    if (!desktop) { applyKbLevel(lv); toast(`已切到${['关', '低', '高'][lv]}（演示）`); return; }
+    if (!desktop.setKeyboardLevel) return;
+    applyKbLevel(lv);
+    desktop.setKeyboardLevel(lv).then(r => {
+      if (r && r.ok) {
+        state.keyboard = r.keyboard || state.keyboard;
+        toast(`键盘背光：${r.name}（EC 1932 = ${r.after}）`);
+      } else {
+        applyKbLevel(state.keyboard && state.keyboard.level != null ? state.keyboard.level : 2);
+        toast(r && r.error ? r.error : '键盘背光写入失败');
+      }
+    }).catch(() => toast('键盘背光写入失败'));
+  }
+
+  function setCharge(limit) {
+    if (!desktop) { applyChargeLimitUI(limit); toast(limit >= 100 ? '充电不设上限（演示）' : `充电上限 ${limit}%（演示）`); return; }
+    if (!desktop.setChargeLimit) return;
+    applyChargeLimitUI(limit);
+    desktop.setChargeLimit(limit).then(r => {
+      if (r && r.ok) {
+        state.chargeInfo = r.charge || state.chargeInfo;
+        toast(r.enabled
+          ? `充电上限已设为 ${r.limit}%（恢复阈值 ${r.lower}%）`
+          : '已取消充电上限（100% 充满）');
+      } else {
+        if (state.chargeInfo) applyChargeLimitUI(state.chargeInfo.limit);
+        toast(r && r.error ? r.error : '充电阈值写入失败');
+      }
+    }).catch(() => toast('充电阈值写入失败'));
   }
 
   /* 窗口控制（仅桌面版显示） */
@@ -594,11 +658,25 @@
           const f = Math.max(s.hw.fan1 || 0, s.hw.fan2 || 0);
           if (f > 0) state.fan = f;
         }
+        if (s.ec) state.ecWritable = !!s.ec.writable;
         if (s.keyboard) state.keyboard = s.keyboard;
         if (s.charge) state.chargeInfo = s.charge;
         fillHwMeta();
         render();
       }).catch(() => {});
+    }
+
+    /* 每 6 秒回读一次 EC：用户用 Fn 快捷键改了背光或别的程序改了充电阈值，界面跟着变 */
+    if (desktop.hwSnapshot) {
+      setInterval(() => {
+        if (document.hidden) return;
+        desktop.hwSnapshot().then(h => {
+          if (!h) return;
+          state.hw = h;
+          applyKbLevel(h.kbLevel);
+          applyChargeLimitUI(h.chargeLimit);
+        }).catch(() => {});
+      }, 6000);
     }
 
     markLocked();
@@ -735,12 +813,21 @@
         toast(`${locked.dataset.lock}：${lockReason(locked)}`);
         return;
       }
-      sw.classList.toggle('on');
+      /* 键盘背光总开关 = 0 档 / 上次档位 */
       if (sw.id === 'lightMaster') {
-        state.lighting.on = sw.classList.contains('on');
-        applyKeyboard();
-        toast(state.lighting.on ? '键盘背光已开启' : '键盘背光已关闭');
+        const nextOn = !sw.classList.contains('on');
+        if (nextOn) setKbLevel(state.lighting.lastLevel || 2);
+        else { state.lighting.lastLevel = Math.max(1, state.lighting.level || 2); setKbLevel(0); }
+        return;
       }
+      /* 充电保护开关：开 = 80%，关 = 不限 */
+      if (sw.id === 'chargeLimitSwitch') {
+        const nextOn = !sw.classList.contains('on');
+        const cur = +($('#chargeLimit').value) || 80;
+        setCharge(nextOn ? (cur < 100 ? cur : 80) : 100);
+        return;
+      }
+      sw.classList.toggle('on');
     });
   });
 
@@ -757,20 +844,21 @@
     inp.addEventListener('input', () => syncRange(inp));
   });
 
+  /* 充电上限：拖动时只改界面，停手 300ms 后才写一次 EC，避免连续写寄存器 */
+  let chargeTimer = null;
   $('#chargeLimit').addEventListener('input', e => {
-    if (desktop) { toast('充电阈值：官方控制中心未启用电池保护模块，本机无法设置'); return; }
-    $('#limitLabel').textContent = `${e.target.value}%`;
-    const on = +e.target.value < 100;
-    $('#chargeLimitSwitch').classList.toggle('on', on);
+    const v = +e.target.value;
+    $('#limitLabel').textContent = v >= 100 ? '不限' : `${v}%`;
+    $('#chargeLimitSwitch').classList.toggle('on', v < 100);
+    clearTimeout(chargeTimer);
+    chargeTimer = setTimeout(() => setCharge(v), 300);
   });
 
-  $('#chargeLimitSwitch').addEventListener('click', () => {
-    if (desktop) { toast('充电阈值：官方控制中心未启用电池保护模块，本机无法设置'); return; }
-    const on = $('#chargeLimitSwitch').classList.contains('on');
-    const range = $('#chargeLimit');
-    range.value = on ? 80 : 100;
-    syncRange(range);
-    $('#limitLabel').textContent = `${range.value}%`;
+  /* 键盘背光三档：关 / 低 / 高，点一下就写 EC */
+  $('#kbLevelSeg')?.addEventListener('click', e => {
+    const b = e.target.closest('button[data-kb]');
+    if (!b) return;
+    setKbLevel(+b.dataset.kb);
   });
 
   $('#brightRange').addEventListener('input', e => {
@@ -928,6 +1016,11 @@
     $('#effectChip').textContent = {
       static: '静态', breath: '呼吸', wave: '波浪', rainbow: '彩虹', audio: '随声'
     }[effect];
+
+    /* 桌面版：芯片显示真实 EC 档位，不被演示灯效覆盖 */
+    if (desktop && state.lighting.level != null) {
+      $('#effectChip').textContent = ['关', '低', '高'][state.lighting.level];
+    }
 
     const foot = $('.fcard[data-view="lighting"] .fcard-foot span');
     if (foot) foot.textContent = `${effect === 'static' ? '静态' : $('#effectChip').textContent} · ${colorName(color)}`;

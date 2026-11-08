@@ -1,7 +1,7 @@
 {
   "name": "mechrevo-control",
   "productName": "MECHREVO Control",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "MECHREVO Z3 Pro 电竞控制台重设计（桌面版）",
   "main": "main.js",
   "author": "bietou123",

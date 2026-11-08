@@ -4,7 +4,7 @@
 
 网页版是纯前端实现，**零依赖、零构建**，双击 `index.html` 即可打开，不需要联网、不需要安装任何东西。
 
-桌面版（Electron，v1.2.0 起）在此之上接入本机真实硬件：CPU / GPU 负载与温度、内存、电池、屏幕亮度与刷新率，并通过官方控制中心的本地 MQTT 服务（127.0.0.1:13688）切换**安静 / 均衡 / 狂暴**三档，用官方 `ACPIDriverDll.dll` **只读** EC 拿真实风扇转速（实测 4568 / 4427 RPM）与 PL1/PL2/PL4 功耗墙。做不到的能力会如实标注「只读 · 不可用」，绝不伪造成功。
+桌面版（Electron，v1.2.0 起）在此之上接入本机真实硬件：CPU / GPU 负载与温度、内存、电池、屏幕亮度与刷新率，并通过官方控制中心的本地 MQTT 服务（127.0.0.1:13688）切换**安静 / 均衡 / 狂暴**三档，用官方 `ACPIDriverDll.dll` 读 EC 拿真实风扇转速（实测 4568 / 4427 RPM）与 PL1/PL2/PL4 功耗墙。v1.2.1 起，键盘背光三档与充电上限也经同一官方 DLL 写入 EC——只写白名单里的单个寄存器，写后立即读回校验，不符自动回滚（见「安全边界」）。做不到的能力会如实标注「只读 · 不可用」，绝不伪造成功。
 
 > ⚠️ 本项目是独立的第三方客户端，与机械革命（MECHREVO）官方无关。网页版的数据为**前端模拟**；桌面版展示本机实测值，但只覆盖下表所列能力。
 
@@ -14,10 +14,10 @@
 |---|---|---|
 | 性能 / 功耗档 | ✅ 可控制 | `Fan/Control` → `OPERATING_*_MODE`，实测 PL1 = 35 / 60 / 75 W，同时切换 Windows 电源计划 |
 | 风扇转速 | ✅ 可读取 | 只读 EC 寄存器 `1124/1125`、`1132/1131`，实时刷新 |
-| 充电阈值 | ❌ 不可用 | 官方 GCUService 本机未启用 BatteryProtection 模块（`BatteryProtection/Control` 无订阅、`System/BatteryProtection` 从不发布） |
-| 键盘背光 | ❌ 不可写 | 本机为单色键盘 OSD-only 模式：官方服务只读状态、刻意不写 EC |
+| 充电阈值 | ✅ 可设置 | 写 EC `1977`（充电上限，`100` = 不限）与 `2000`（恢复阈值，比上限低 5%），写后读回校验 |
+| 键盘背光 | ✅ 可设置 | 单色三档，写 EC `1932` = `0x80 \| 档位`（`0` 关 / `1` 低 / `2` 高），写后读回校验 |
 
-后两项如需实现，只能绕过官方服务直接 `WriteEC` —— **本项目不做 EC 写入**，见下方「安全边界」。
+写入能力只在官方 `ACPIDriverDll.dll` 的 `WriteEC` 可用时开放；通道不可用时界面显示锁定并说明原因，不会伪造成功。RGB 分区灯效、自定义风扇曲线本机没有对应寄存器，仍为不可用。
 
 ---
 
@@ -25,7 +25,8 @@
 
 | 版本 | 说明 | 下载 |
 |---|---|---|
-| 桌面版 v1.2.0 | Windows 便携版，免安装，双击即用（约 91 MB） | [MECHREVO-Control-1.2.0.exe](https://github.com/bietou123/mechrevo-control/releases/download/v1.2.0/MECHREVO-Control-1.2.0.exe) |
+| 桌面版 v1.2.1 | Windows 便携版，免安装，双击即用（新增键盘背光三档与充电上限写入） | [MECHREVO-Control-1.2.1.exe](https://github.com/bietou123/mechrevo-control/releases/download/v1.2.1/MECHREVO-Control-1.2.1.exe) |
+| 桌面版 v1.2.0 | 上一版：档位切换 + 风扇/功耗墙只读 | [MECHREVO-Control-1.2.0.exe](https://github.com/bietou123/mechrevo-control/releases/download/v1.2.0/MECHREVO-Control-1.2.0.exe) |
 | 网页版 | 零依赖纯前端，克隆仓库后双击 `index.html` | [全部发布](https://github.com/bietou123/mechrevo-control/releases) |
 
 > 便携版未做代码签名，Windows SmartScreen 可能提示「未知发布者」，选择「更多信息 → 仍要运行」即可。
@@ -64,7 +65,7 @@ npm run dist         # 打便携版 release/MECHREVO-Control-<version>.exe
 ```
 
 - `main.js` 是主进程：窗口控制、遥测推送、电源计划、亮度与显示模式、硬件控制 IPC。
-- `ec.js` 用 `koffi` 加载官方 `ACPIDriverDll.dll`，**只声明 `ReadEC`**，提供风扇转速 / 功耗墙 / 键盘灯 / 充电阈值寄存器的只读快照。
+- `ec.js` 用 `koffi` 加载官方 `ACPIDriverDll.dll`，声明 `ReadEC` 与受控的 `WriteEC`：读提供风扇转速 / 功耗墙 / 键盘灯 / 充电阈值的快照；写只走 `writeEC()` 一个封装——读原值 → 写 → 立即读回 → 不符就写回原值，且只接受键盘背光与充电阈值三个白名单地址。
 - `mqtt.js` 是手写的 MQTT 3.1.1 最小客户端，连本机 `GCUBridge.exe`（127.0.0.1:13688），向 `Fan/Control` 发 `OPERATING_OFFICE_MODE` / `OPERATING_GAMING_MODE` / `OPERATING_TURBO_MODE` 切换档位，订阅 `Fan/Status`、`Keyboard/Status` 等状态主题。
 - `preload.js` 只通过 `contextBridge` 暴露上述接口，渲染进程无 Node 权限。
 - 未安装官方控制中心时，`ec.init()` 与 MQTT 都会失败，界面自动降级为只读展示并说明原因，不崩溃、不伪造。
@@ -75,14 +76,17 @@ npm run dist         # 打便携版 release/MECHREVO-Control-<version>.exe
 
 ### 安全边界
 
-本项目**从不调用 `WriteEC`**，不刷写 EC、不替换或修改 `UWACPIDriver.sys`、不做驱动提权。所有硬件访问都是：
-1. 通过官方 DLL 的只读 `ReadEC` 取寄存器；
-2. 通过官方服务自己监听的本地回环 MQTT 端口发控制命令（与官方 UI 走同一条路径）。
+本项目的 EC 写入范围被刻意压到最小：
 
-空调制命令由官方 `GCUService.exe` 执行，风险边界与官方控制台一致。想实现充电阈值或键盘背光写入，需要 `WriteEC`，那属于另一个风险等级，本项目不做。
+1. 只通过官方 DLL 的用户态 `WriteEC` 写**单个字节**，不批量、不连续写；
+2. 只接受三个白名单地址——`1932`（键盘背光 `0x80 | 档位`）、`1977`（充电上限）、`2000`（恢复阈值）。地址取自厂商自己的 `Define.ECSpec` 符号表（`ADDR_SINGLEKBL_ENABLE`、`ADDR_BATTERY_CHARGE_LIMIT_UP/DOWN`），不是猜的；
+3. 每次写入都「读原值 → 写 → 立即读回」，读回与目标不符就自动写回原值并如实报告失败；
+4. 重启不会保留任何自定义状态：写入只改 EC 当前值，本应用不装服务、不写启动项、不常驻。
+
+**从不刷写 EC 固件**，不替换或修改 `UWACPIDriver.sys`，不做驱动提权。风扇曲线、RGB 分区等需要写其他寄存器或非官方协议的能力一律不实现。官方 MQTT 通道仍用于三档功耗模式切换，与官方 UI 走同一条路径，风险边界与官方控制台一致。
 
 
-> 以下功能清单按**网页版**（纯前端演示）描述。桌面版在此基础上接入真实硬件，可用能力以上方「桌面版实测能力」表为准；表中标 ❌ 的面板在桌面版会显示「只读 · 不可用」并说明原因。
+> 以下功能清单按**网页版**（纯前端演示）描述。桌面版在此基础上接入真实硬件，可用能力以上方「桌面版实测能力」表为准；表里没列出、本机也没有对应寄存器的能力（RGB 分区灯效、自定义风扇曲线等）会显示锁定并说明原因。
 
 **控制台**
 - CPU / GPU / 风扇 / 内存 四张指标卡，带 60 秒滚动迷你曲线
@@ -159,7 +163,7 @@ mechrevo-control/
 ├── style.css         # 全部视觉样式与动画
 ├── app.js            # 视图切换、搜索、图表、遥测（网页版模拟 / 桌面版真实）
 ├── main.js           # Electron 主进程：窗口、遥测、电源计划、亮度、刷新率、硬件 IPC
-├── ec.js             # koffi 只读加载 ACPIDriverDll.dll（ReadEC）
+├── ec.js             # koffi 加载 ACPIDriverDll.dll（ReadEC + 白名单 WriteEC）
 ├── mqtt.js           # 手写 MQTT 3.1.1 最小客户端，连官方 GCUBridge
 ├── preload.js        # contextBridge 暴露 window.desktop 接口
 ├── cdp-eval.cjs      # 屏外 CDP 取值脚本（开发调试用）

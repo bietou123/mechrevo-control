@@ -372,30 +372,41 @@ async function setOperatingMode(mode) {
 
 function keyboardState() {
   const kb = gcu ? gcu.get('Keyboard/Status') : null;
-  if (!kb) return { available: false, reason: '官方服务未返回 Keyboard/Status' };
+  const level = hw ? hw.kbLevel : null;
+  const writable = !!(ec.status && ec.status().writable);
   return {
-    available: true,
-    solution: kb.solution,
-    type: kb.type,
-    powerStatus: kb.powerStatus,
-    brightness: kb.brightNess,
-    acBrightness: kb.ACBrightness,
-    dcBrightness: kb.DCBrightness,
-    singleZonePowerSupport: kb.SingleZonePowerSupport,
+    // EC 通道可用即可写；官方 MQTT 的 Keyboard/Status 只是补充信息
+    available: level != null || writable,
+    writable,
+    level,
+    name: level != null ? ec.KB_NAMES[level] : null,
+    levels: ec.KB_NAMES,
+    solution: kb && kb.solution,
+    type: kb && kb.type,
+    powerStatus: kb && kb.powerStatus,
+    brightness: kb && kb.brightNess,
+    acBrightness: kb && kb.ACBrightness,
+    dcBrightness: kb && kb.DCBrightness,
+    singleZonePowerSupport: kb && kb.SingleZonePowerSupport,
     ecLevel: hw ? hw.kbLight : null,
-    writable: false,
-    note: '本机键盘灯为 OSD-only 模式：官方服务只读状态、不提供写接口（实测 5 类写命令全部无响应）',
+    note: '单色键盘：写 EC 1932 = 0x80 | 档位（0 关 / 1 低 / 2 高），写后立即读回校验',
   };
 }
 
 function chargeState() {
   const fan = gcu ? gcu.get('Fan/Status') : null;
+  const up = hw ? hw.chg[0] : null;
+  const down = hw ? hw.chg[1] : null;
+  const limit = hw ? hw.chargeLimit : null;
   return {
-    available: false,
-    ecUp: hw ? hw.chg[0] : null,
-    ecDown: hw ? hw.chg[1] : null,
+    available: up != null,
+    writable: !!(ec.status && ec.status().writable),
+    ecUp: up,
+    ecDown: down,
+    limit,
+    enabled: !!(hw && hw.chargeEnabled),
     fanHasField: !!(fan && 'BatteryChargingLimit' in fan),
-    reason: '官方 GCUService 本机未启用 BatteryProtection 模块（BatteryProtection/Control 无订阅、System/BatteryProtection 从未发布、ItemSupport 无相关支持位）',
+    note: 'EC 1977 = 充电上限（100 或 0 = 不限），2000 = 恢复阈值（比上限低 5%）',
   };
 }
 
@@ -494,6 +505,16 @@ ipcMain.handle('hw:state', () => ({
 ipcMain.handle('hw:getMode', () => profileState());
 ipcMain.handle('hw:setMode', (_e, mode) => setOperatingMode(mode));
 ipcMain.handle('hw:raw', (_e, addr) => ec.readEC(Number(addr) || 0));
+ipcMain.handle('hw:setKeyboard', (_e, level) => {
+  const r = ec.setKeyboardLevel(level);
+  if (ec.status().ok) hw = ec.snapshot();
+  return { ...r, keyboard: keyboardState() };
+});
+ipcMain.handle('hw:setCharge', (_e, up, down) => {
+  const r = ec.setChargeLimit(up, down == null ? undefined : Number(down));
+  if (ec.status().ok) hw = ec.snapshot();
+  return { ...r, charge: chargeState() };
+});
 ipcMain.handle('hw:refresh', () => {
   if (gcu && gcu.connected) {
     gcu.publish('Fan/Control', { Action: 'GETSTATUS' });
