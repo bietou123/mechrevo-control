@@ -125,21 +125,25 @@ const REG = {
   CHG_LIMIT_DOWN: 2000, // ADDR_BATTERY_CHARGE_LIMIT_DOWN：恢复充电的下限
 };
 
-/* 键盘背光：厂商 SingleColorKeyboard.BacklightLevel_Min=0 / Max=2 / Default=2，
-   EC 值 = 0x80 | 档位（0x80 关 / 0x81 低 / 0x82 高），本机实测 0x82 为出厂值。 */
-const KB_BASE = 0x80;
+/* 键盘背光：厂商 SingleColorKeyboard.BacklightLevel_Min=0 / Max=2 / Default=2。
+   ★ 实测映射与直觉相反（2026-11-08 用户实测「开是关、关是开」后三档扫描确认）：
+   EC 1932 = 0x80 最亮 / 0x81 低 / 0x82 熄灭，即亮度值越大越暗，关档才是 0x82。 */
+const KB_EC_OFF = 0x80;   // 最亮端
+const KB_EC_DARK = 0x82;  // 熄灭端
 const KB_MAX_LEVEL = 2;
 const KB_NAMES = ['关', '低', '高'];
+const kbECOfLevel = (lv) => KB_EC_DARK - lv;   // 关 130 / 低 129 / 高 128
 
 function kbLevelOf(raw) {
   if (raw == null) return null;
-  const lv = raw & 0x7f;
-  return lv <= KB_MAX_LEVEL ? lv : null;
+  const v = raw & 0xff;
+  if (v < KB_EC_OFF || v > KB_EC_DARK) return null;
+  return KB_EC_DARK - v;
 }
 
 function setKeyboardLevel(level) {
   const lv = Math.max(0, Math.min(KB_MAX_LEVEL, Math.round(Number(level) || 0)));
-  const r = writeEC(REG.KB_LIGHT, KB_BASE | lv);
+  const r = writeEC(REG.KB_LIGHT, kbECOfLevel(lv));
   return { ...r, level: r.ok ? lv : null, name: KB_NAMES[lv] };
 }
 

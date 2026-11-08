@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#0a0908">
-<meta name="color-scheme" content="dark">
-<meta name="description" content="机械革命电竞控制台暗色墨金风格高保真重设计：控制台、性能、灯光、电池、显示、设备信息，纯前端零依赖。">
-<meta property="og:title" content="MECHREVO 电竞控制台 · 暗金重设计">
-<meta property="og:description" content="把官方控制台重设计为暗色墨金风格：八大视图、实时曲线、全局搜索，纯前端零依赖。">
+<meta name="theme-color" content="#f4f0e8">
+<meta name="color-scheme" content="light">
+<meta name="description" content="机械革命电竞控制台 · 莫奈色系（印象派低饱和水彩）高保真重设计：控制台、性能、灯光、电池、显示、设备信息，纯前端零依赖。">
+<meta property="og:title" content="MECHREVO 电竞控制台 · 莫奈色系">
+<meta property="og:description" content="把官方控制台重设计为莫奈色系风格：八大视图、实时曲线、全局搜索，纯前端零依赖。">
 <meta property="og:type" content="website">
 <title>MECHREVO · 电竞控制台</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b0a09'/%3E%3Cpath d='M17 45V19l15 15 15-15v26' fill='none' stroke='%23d4af6a' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23f4f0e8'/%3E%3Cpath d='M17 45V19l15 15 15-15v26' fill='none' stroke='%237d93b2' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -84,7 +84,7 @@
     </nav>
 
     <div class="sidebar-foot">
-      <span>v2.0 · 开源重制版</span>
+      <span>v1.3.1 · 开源重制版</span>
       <button class="power-btn" id="powerBtn" title="电源">
         <svg viewBox="0 0 24 24"><path d="M12 3v8"/><path d="M6.5 6.5a8 8 0 1 0 11 0"/></svg>
       </button>
@@ -168,7 +168,7 @@
             </div>
             <div class="metric-value"><b id="fanNum">—</b><span>RPM</span></div>
             <canvas class="spark" data-series="fan"></canvas>
-            <div class="metric-foot"><span>EC 未开放</span><span>—</span></div>
+            <div class="metric-foot" id="fanFoot"><span>EC 直读</span><span>—</span></div>
           </article>
 
           <article class="metric">
@@ -311,7 +311,7 @@
               <div class="bar-row"><span>SSD</span><div class="bar"><i style="width:0%"></i></div><b title="读取需要管理员权限">需管理员</b></div>
               <div class="bar-row"><span>内存</span><div class="bar"><i style="width:0%"></i></div><b>无传感器</b></div>
             </div>
-            <p class="panel-tip">GPU 温度来自 nvidia-smi。CPU 温度需厂商 EC 或 LibreHardwareMonitor 内核驱动，本应用不伪造读数。</p>
+            <p class="panel-tip">GPU 温度来自 nvidia-smi，CPU 温度取自本机传感器；读不到时显示 —，不伪造读数。</p>
           </section>
 
           <section class="panel" data-lock="风扇控制">
@@ -382,7 +382,7 @@
                 <button data-kb="2" class="active">高</button>
               </div>
             </div>
-            <p class="panel-tip" id="kbRealTip">EC 1932 = 0x80 | 档位（128 关 / 129 低 / 130 高）；写入后立即读回校验，不符自动回滚。</p>
+            <p class="panel-tip" id="kbRealTip">EC 1932 数值越小越亮（130 关 / 129 低 / 128 高）；写入后立即读回校验，不符自动回滚。</p>
           </section>
         </div>
 
@@ -401,13 +401,13 @@
           <div class="ctrl-block">
             <label class="ctrl-label">颜色</label>
             <div class="swatches" id="swatches">
-              <button class="swatch active" style="--c:#d4af6a" data-color="#d4af6a" title="暖金"></button>
-              <button class="swatch" style="--c:#c05a45" data-color="#c05a45" title="朱砂"></button>
-              <button class="swatch" style="--c:#7fae8a" data-color="#7fae8a" title="青玉"></button>
-              <button class="swatch" style="--c:#7d92b8" data-color="#7d92b8" title="雾蓝"></button>
-              <button class="swatch" style="--c:#e8e2d4" data-color="#e8e2d4" title="月白"></button>
-              <button class="swatch" style="--c:#c9a0dc" data-color="#c9a0dc" title="紫藤"></button>
-              <input type="color" id="customColor" class="color-input" value="#d4af6a" title="自定义颜色">
+              <button class="swatch active" style="--c:#7d93b2" data-color="#7d93b2" title="暖金"></button>
+              <button class="swatch" style="--c:#c98f88" data-color="#c98f88" title="朱砂"></button>
+              <button class="swatch" style="--c:#7fa392" data-color="#7fa392" title="青玉"></button>
+              <button class="swatch" style="--c:#7d93b2" data-color="#7d93b2" title="雾蓝"></button>
+              <button class="swatch" style="--c:#5a6577" data-color="#5a6577" title="月白"></button>
+              <button class="swatch" style="--c:#a89cc9" data-color="#a89cc9" title="紫藤"></button>
+              <input type="color" id="customColor" class="color-input" value="#7d93b2" title="自定义颜色">
             </div>
           </div>
           <div class="ctrl-block">
@@ -553,8 +553,8 @@
             </div>
             <div class="cc-preview">
               <div class="cc-swatches">
-                <i style="--c:#e3cba4"></i><i style="--c:#c58f6d"></i><i style="--c:#cf6b52"></i>
-                <i style="--c:#7fae8a"></i><i style="--c:#7d92b8"></i><i style="--c:#e8e2d4"></i>
+                <i style="--c:#8fa6c4"></i><i style="--c:#c99a93"></i><i style="--c:#c98f88"></i>
+                <i style="--c:#7fa392"></i><i style="--c:#7d93b2"></i><i style="--c:#5a6577"></i>
               </div>
               <div class="cc-caption"><span>标准色板</span><span id="ccReadout">R 100 · G 100 · B 100</span></div>
             </div>
@@ -598,9 +598,9 @@
             </div>
             <div class="driver-list">
               <div class="driver-row"><span>NVIDIA 显卡驱动</span><b id="drvGpu">—</b><em class="ok">已安装</em></div>
-              <div class="driver-row"><span>厂商控制中心</span><b>未安装</b><em class="warn">影响风扇 / 灯光控制</em></div>
+              <div class="driver-row" id="drvOem"><span>厂商控制中心</span><b>已安装</b><em class="ok">EC 直读已接通</em></div>
             </div>
-            <p class="panel-tip" id="monTip">CPU 温度与风扇转速需要 LibreHardwareMonitor 驱动支持。</p>
+            <p class="panel-tip" id="monTip">温度与负载取自本机传感器，风扇转速与占空比由 EC 直读。</p>
           </section>
         </div>
       </section>
@@ -667,9 +667,9 @@
             <svg viewBox="0 0 40 40"><path d="M8 31V9l12 12L32 9v22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 31v-9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
           </div>
           <h2>MECHREVO 电竞控制台</h2>
-          <p class="about-ver">版本 2.0.0 · 开源重制版</p>
+          <p class="about-ver">版本 1.3.1 · 开源重制版</p>
           <p class="about-desc">
-            以「暗色墨金」视觉重制的电竞控制台界面，覆盖常规设置、性能、灯光、电池、显示与设备信息六大模块。
+            以「莫奈色系」印象派低饱和视觉重制的电竞控制台界面，覆盖常规设置、性能、灯光、电池、显示与设备信息六大模块。
             纯前端实现，可直接在浏览器中运行，亦可作为桌面端 UI 原型复用。
           </p>
           <div class="about-meta">

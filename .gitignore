@@ -8,6 +8,13 @@ Thumbs.db
 # 本地一次性探测脚本（含本机特定地址/端口）
 ktest.cjs
 probe23.cjs
+kbd-cal.cjs
+fan-probe.cjs
+apply-monet.cjs
+cdp-shot.cjs
+
+# 验证截图（不入库）
+test-artifacts/
 
 # 一次性 EC 探针输出
 .ec80.json

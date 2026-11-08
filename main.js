@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage } = require('electron');
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
@@ -9,6 +9,8 @@ const ec = require('./ec.js');
 const { GcuClient } = require('./mqtt.js');
 
 let win = null;
+let tray = null;
+let quitting = false;
 let gpu = { ok: false };
 let battery = null;
 let device = null;
@@ -412,6 +414,31 @@ function chargeState() {
 
 /* ---------------- 窗口 ---------------- */
 
+function createTray() {
+  if (TEST_MODE || tray) return;
+  try {
+    const icon = nativeImage.createFromPath(path.join(__dirname, 'assets', 'icon.ico'));
+    tray = new Tray(icon);
+    const toggle = () => {
+      if (!win) return;
+      if (win.isVisible() && !win.isMinimized()) win.hide();
+      else { win.show(); win.focus(); }
+    };
+    tray.setToolTip('MECHREVO 电竞控制台');
+    tray.setContextMenu(Menu.buildFromTemplate([
+      { label: '显示主界面', click: () => { if (win) { win.show(); win.focus(); } } },
+      { label: '隐藏主界面', click: () => { if (win) win.hide(); } },
+      { type: 'separator' },
+      { label: '退出', click: () => { quitting = true; app.quit(); } },
+    ]));
+    tray.on('click', toggle);
+    tray.on('double-click', () => { if (win) { win.show(); win.focus(); } });
+  } catch (e) {
+    tray = null;
+    console.error('托盘创建失败:', e && e.message);
+  }
+}
+
 function createWindow() {
   win = new BrowserWindow({
     width: 1440,
@@ -422,7 +449,7 @@ function createWindow() {
     minHeight: 680,
     frame: false,
     show: false,
-    backgroundColor: '#070605',
+    backgroundColor: '#f4f0e8',
     title: 'MECHREVO Control',
     icon: path.join(__dirname, 'assets', 'icon.ico'),
     webPreferences: {
@@ -444,6 +471,13 @@ function createWindow() {
   };
   win.on('maximize', notifyMax);
   win.on('unmaximize', notifyMax);
+
+  // 关闭按钮 = 收进托盘（右键托盘图标可真正退出），测试模式保持原样
+  win.on('close', (e) => {
+    if (TEST_MODE || quitting) return;
+    e.preventDefault();
+    win.hide();
+  });
 
   // 外部链接交给系统浏览器，禁止应用内开新窗
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -524,9 +558,10 @@ ipcMain.handle('hw:refresh', () => {
   return { hw, profile: profileState() };
 });
 
-app.whenReady().then(createWindow);
-app.on('before-quit', () => { if (gcu) gcu.close(); });
-app.on('window-all-closed', () => app.quit());
+app.whenReady().then(() => { createWindow(); createTray(); });
+app.on('before-quit', () => { quitting = true; if (gcu) gcu.close(); if (tray) { tray.destroy(); tray = null; } });
+app.on('window-all-closed', () => { if (TEST_MODE) app.quit(); });
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  else if (win) { win.show(); win.focus(); }
 });

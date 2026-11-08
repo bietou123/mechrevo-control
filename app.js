@@ -36,7 +36,7 @@
       cpu: [], gpu: [], fan: [], mem: []
     },
     lighting: {
-      on: true, effect: 'static', color: '#d4af6a', brightness: 70
+      on: true, effect: 'static', color: '#7d93b2', brightness: 70
     },
     /* EC 写入通道是否就绪（后端 WriteEC 已加载） */
     ecWritable: false
@@ -203,7 +203,7 @@
     ctx.clearRect(0, 0, w, h);
 
     /* 网格 */
-    ctx.strokeStyle = 'rgba(214,186,138,.055)';
+    ctx.strokeStyle = 'rgba(125,147,178,.055)';
     ctx.lineWidth = 1;
     for (let i = 1; i <= 4; i++) {
       const y = (h / 5) * i;
@@ -214,7 +214,7 @@
     }
 
     /* 竖向刻度 */
-    ctx.strokeStyle = 'rgba(214,186,138,.03)';
+    ctx.strokeStyle = 'rgba(125,147,178,.03)';
     for (let i = 1; i <= 6; i++) {
       const x = (w / 7) * i;
       ctx.beginPath();
@@ -223,21 +223,21 @@
       ctx.stroke();
     }
 
-    plotSeries(ctx, state.series.cpu, w, h, '#d4af6a', {
+    plotSeries(ctx, state.series.cpu, w, h, '#7d93b2', {
       min: 0, max: 100, padTop: 12, padBottom: 8,
-      fill: 'rgba(212,175,106,.16)', glow: 12, width: 1.8, endDot: true
+      fill: 'rgba(125,147,178,.16)', glow: 12, width: 1.8, endDot: true
     });
-    plotSeries(ctx, state.series.gpu, w, h, '#c05a45', {
+    plotSeries(ctx, state.series.gpu, w, h, '#c98f88', {
       min: 0, max: 100, padTop: 12, padBottom: 8,
-      fill: 'rgba(192,90,69,.08)', glow: 10, width: 1.6, endDot: true
+      fill: 'rgba(201,143,136,.08)', glow: 10, width: 1.6, endDot: true
     });
   }
 
   function drawAll() {
-    drawSpark($('.spark[data-series="cpu"]'), state.series.cpu, 'rgb(212,175,106)');
-    drawSpark($('.spark[data-series="gpu"]'), state.series.gpu, 'rgb(192,90,69)');
-    drawSpark($('.spark[data-series="fan"]'), state.series.fan, 'rgb(127,174,138)', { min: 1000, max: 5400 });
-    drawSpark($('.spark[data-series="mem"]'), state.series.mem, 'rgb(125,146,184)', { min: 18, max: 48 });
+    drawSpark($('.spark[data-series="cpu"]'), state.series.cpu, 'rgb(125,147,178)');
+    drawSpark($('.spark[data-series="gpu"]'), state.series.gpu, 'rgb(201,143,136)');
+    drawSpark($('.spark[data-series="fan"]'), state.series.fan, 'rgb(127,163,146)', { min: 1000, max: 5400 });
+    drawSpark($('.spark[data-series="mem"]'), state.series.mem, 'rgb(125,147,178)', { min: 18, max: 48 });
 
     if ($('#view-dashboard').classList.contains('active')) drawMain($('#mainChart'));
     if ($('#view-performance').classList.contains('active')) drawMain($('#perfChart'));
@@ -458,11 +458,17 @@
         const cf = $('#cardBattFoot');
         if (cf) cf.textContent = `健康度 ${health}% · 设计 ${(design / 1000).toFixed(0)}Wh`;
       }
-      $('#battCycles').textContent = info.cycles ? `${info.cycles} 次` : '未上报';
+      $('#battCycles').textContent = info.cycles ? `${info.cycles} 次` : '未提供';
     }
-    if (charge == null) {
-      $('#battSub').textContent = '本机无电池或未上报';
-    } else if (state.battery && state.battery.status) {
+    if (charge == null && !realBattInfo) {
+      /* 只有「电量和容量都没有」才判定为无电池；容量报告比遥测慢，别抢先把健康度文案覆盖掉 */
+      $('#battSub').textContent = '电量未上报';
+    } else if (realBattInfo && realBattInfo.design && realBattInfo.full) {
+      /* 遥测晚到时重新按已拿到的容量报告写健康度，避免被上一次的空 charge 调用冲掉 */
+      const h = Math.round(realBattInfo.full / realBattInfo.design * 100);
+      $('#battSub').textContent = h < 80 ? '容量衰减明显' : '电池状态正常';
+    }
+    if (state.battery && state.battery.status) {
       const onAC = state.battery.status !== 1;
       const chip = $('#view-battery .page-head .mini-chip');
       if (chip) chip.textContent = onAC ? '已接入电源' : '使用电池';
@@ -473,7 +479,7 @@
      已确认可用的不再锁定：档位切换、风扇转速/占空比读取、键盘背光三档、
      充电上限、屏幕亮度、刷新率、电池容量 */
   const LOCK_INFO = {
-    '风扇控制': '转速可实时读取；自定义曲线需写 EC，本应用不写入',
+    '风扇控制': '转速与占空比可实时读取；实测写入占空比后 EC 固件 1 秒内改回，转速由固件曲线接管',
     'RGB 灯效': '本机键盘为单色背光（EC 只有一档亮度），没有 RGB 分区/颜色寄存器可用',
     '应用绑定': '需常驻的应用监控服务，本应用不实现',
     '色彩模式': '需厂商 RGB 灯控服务（本机未提供）',
@@ -504,7 +510,7 @@
     const hw = state.hw;
     if (!hw) return;
 
-    /* 键盘背光：单色三档，EC 1932 = 0x80 | 档位 */
+    /* 键盘背光：单色三档，EC 1932 数值越小越亮（130 关 / 129 低 / 128 高） */
     applyKbLevel(hw.kbLevel);
     const kbTip = $('#kbRealTip');
     if (kbTip) {
@@ -528,7 +534,19 @@
     if (fanTip) {
       fanTip.textContent =
         `EC 实时：主扇 ${hw.fan1} RPM · 副扇 ${hw.fan2} RPM · 占空比 ${hw.duty1}/255、${hw.duty2}/255。` +
-        `自定义曲线需写 EC，本应用只读。`;
+        `实测写入占空比会被 EC 固件在 1 秒内改回，转速由固件曲线接管，本应用不强写。`;
+    }
+    const fanFoot = $('#fanFoot');
+    if (fanFoot) {
+      fanFoot.innerHTML = `<span>EC 直读</span><span>占空比 ${hw.duty1}/${hw.duty2}</span>`;
+    }
+    const fanChip = $('#fanChip');
+    if (fanChip && (!fanChip.textContent || fanChip.textContent === 'N/A')) {
+      fanChip.textContent = '固件曲线';
+    }
+    const drvOem = $('#drvOem');
+    if (drvOem) {
+      drvOem.innerHTML = '<span>厂商控制中心</span><b>已安装</b><em class="ok">EC 直读已接通</em>';
     }
   }
 
@@ -547,10 +565,10 @@
     if (chip) {
       chip.textContent = name;
       chip.classList.toggle('on', lv > 0);
-      chip.title = `EC 1932 = ${128 + lv}`;
+      chip.title = `EC 1932 = ${130 - lv}`;
     }
     const ec = $('#effectChip');
-    if (ec) { ec.textContent = name; ec.title = `EC 1932 = ${128 + lv}（单色键盘，无 RGB 分区）`; }
+    if (ec) { ec.textContent = name; ec.title = `EC 1932 = ${130 - lv}（单色键盘，无 RGB 分区）`; }
     const lbl = $('#kbBrightLabel');
     if (lbl) lbl.textContent = name;
     const master = $('#lightMaster');
@@ -913,7 +931,7 @@
   /* ------------------------------------------------------------
      色彩校正
      ------------------------------------------------------------ */
-  const CC_BASE = ['#e3cba4', '#c58f6d', '#cf6b52', '#7fae8a', '#7d92b8', '#e8e2d4'].map(hex => {
+  const CC_BASE = ['#8fa6c4', '#c99a93', '#c98f88', '#7fa392', '#7d93b2', '#5a6577'].map(hex => {
     const n = parseInt(hex.slice(1), 16);
     return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
   });
@@ -1033,8 +1051,8 @@
 
   function colorName(hex) {
     const map = {
-      '#d4af6a': '暖金', '#c05a45': '朱砂', '#7fae8a': '青玉',
-      '#7d92b8': '雾蓝', '#e8e2d4': '月白', '#c9a0dc': '紫藤'
+      '#7d93b2': '暖金', '#c98f88': '朱砂', '#7fa392': '青玉',
+      '#7d93b2': '雾蓝', '#5a6577': '月白', '#a89cc9': '紫藤'
     };
     return map[hex.toLowerCase()] || '自定义';
   }
