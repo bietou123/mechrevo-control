@@ -6,6 +6,8 @@
 
 桌面版（Electron，v1.2.0 起）在此之上接入本机真实硬件：CPU / GPU 负载与温度、内存、电池、屏幕亮度与刷新率，并通过官方控制中心的本地 MQTT 服务（127.0.0.1:13688）切换**安静 / 均衡 / 狂暴**三档，用官方 `ACPIDriverDll.dll` 读 EC 拿真实风扇转速（实测 4568 / 4427 RPM）与 PL1/PL2/PL4 功耗墙。v1.3.0 起，键盘背光三档与充电上限也经同一官方 DLL 写入 EC——只写白名单里的单个寄存器，写后立即读回校验，不符自动回滚（见「安全边界」）。做不到的能力会如实标注「只读 · 不可用」，绝不伪造成功。
 
+v1.4.0 做了一次「去假留真」：灯光页整块删掉所有点了没反应的 RGB 假控件，改成以官方支持表为证据的能力说明，只保留真正写 EC 的单色三档背光；同时补上托盘直接切档、托盘实时读数、全局快捷键三项真功能，桌面版读不到 CPU 温度就显示「—」而不是固定 62°C。
+
 > ⚠️ 本项目是独立的第三方客户端，与机械革命（MECHREVO）官方无关。网页版的数据为**前端模拟**；桌面版展示本机实测值，但只覆盖下表所列能力。
 
 ### 桌面版实测能力
@@ -17,6 +19,9 @@
 | 风扇占空比 | ❌ 可读不可写 | 写 `1883` 后 EC 固件 1 秒内改回（实测 `100 → 200`），转速不跟随，固件独占曲线 |
 | 充电阈值 | ✅ 可设置 | 写 EC `1977`（充电上限，`100` = 不限）与 `2000`（恢复阈值，比上限低 5%），写后读回校验 |
 | 键盘背光 | ✅ 可设置 | 单色三档，写 EC `1932` = `130 - 档位`（`0` 关 = 130 / `1` 低 = 129 / `2` 高 = 128，**数值越小越亮**），写后读回校验 |
+| RGB 灯效 / 颜色 / 灯带 | ❌ 本机无硬件 | 官方 MQTT 支持表实测：`LightbarSupport = 0`、`RGBLightbarSupport = 0`、`auroraExist = false`、键盘 `type = SingleZone`；EC 里只有 `1932` 一个亮度寄存器，没有任何颜色通道 |
+| 全局快捷键 | ✅ 可用 | `Ctrl+Alt+1/2/3` 切档、`Ctrl+Alt+M` 显示/隐藏窗口，由主进程 `globalShortcut` 注册 |
+| 托盘直接切档 | ✅ 可用 | 右键托盘图标选安静/均衡/狂暴，切档走同一条官方 MQTT 通道，结果同步界面与托盘勾选 |
 
 > 键盘背光的映射在 v1.3.1 修正：v1.3.0 按 `0x80 | 档位` 写入，实际这台机器的 EC 是数值越小越亮，导致「点关反而全亮」。现在双向实测：点「高」读回 `128`，点「关」读回 `130`。
 
@@ -30,7 +35,8 @@
 
 | 版本 | 说明 | 下载 |
 |---|---|---|
-| 桌面版 v1.3.1 | Windows 便携版，免安装（修复背光开关反相、新增系统托盘、莫奈色系重制） | [MECHREVO-Control-1.3.1.exe](https://github.com/bietou123/mechrevo-control/releases/download/v1.3.1/MECHREVO-Control-1.3.1.exe) |
+| 桌面版 v1.4.0 | Windows 便携版，免安装（灯光页重做、托盘切档、托盘实时读数、全局快捷键、不再伪造 CPU 温度） | [MECHREVO-Control-1.4.0.exe](https://github.com/bietou123/mechrevo-control/releases/download/v1.4.0/MECHREVO-Control-1.4.0.exe) |
+| 桌面版 v1.3.1 | 修复背光开关反相、新增系统托盘、莫奈色系重制 | [MECHREVO-Control-1.3.1.exe](https://github.com/bietou123/mechrevo-control/releases/download/v1.3.1/MECHREVO-Control-1.3.1.exe) |
 | 桌面版 v1.3.0 | 键盘背光三档 + 充电上限真实写入（背光映射有反相 bug） | [MECHREVO-Control-1.3.0.exe](https://github.com/bietou123/mechrevo-control/releases/download/v1.3.0/MECHREVO-Control-1.3.0.exe) |
 | 桌面版 v1.2.0 | 档位切换 + 风扇/功耗墙只读 | [MECHREVO-Control-1.2.0.exe](https://github.com/bietou123/mechrevo-control/releases/download/v1.2.0/MECHREVO-Control-1.2.0.exe) |
 | 网页版 | 零依赖纯前端，克隆仓库后双击 `index.html` | [全部发布](https://github.com/bietou123/mechrevo-control/releases) |
@@ -74,7 +80,8 @@ npm run dist         # 打便携版 release/MECHREVO-Control-<version>.exe
 - `ec.js` 用 `koffi` 加载官方 `ACPIDriverDll.dll`，声明 `ReadEC` 与受控的 `WriteEC`：读提供风扇转速 / 功耗墙 / 键盘灯 / 充电阈值的快照；写只走 `writeEC()` 一个封装——读原值 → 写 → 立即读回 → 不符就写回原值，且只接受键盘背光与充电阈值三个白名单地址。
 - `mqtt.js` 是手写的 MQTT 3.1.1 最小客户端，连本机 `GCUBridge.exe`（127.0.0.1:13688），向 `Fan/Control` 发 `OPERATING_OFFICE_MODE` / `OPERATING_GAMING_MODE` / `OPERATING_TURBO_MODE` 切换档位，订阅 `Fan/Status`、`Keyboard/Status` 等状态主题。
 - `preload.js` 只通过 `contextBridge` 暴露上述接口，渲染进程无 Node 权限。
-- **系统托盘**（v1.3.1 起）：启动后常驻托盘，左键切换显示 / 隐藏，右键菜单可退出。点主窗口的关闭按钮是收进托盘，不是退出。
+- **系统托盘**（v1.3.1 起）：启动后常驻托盘，左键切换显示 / 隐藏。v1.4.0 起右键菜单可直接选**安静 / 均衡 / 狂暴**（当前档位打勾），鼠标悬停图标显示「档位 · GPU 温度 · 风扇转速」，每 2 秒刷新。点主窗口的关闭按钮是收进托盘，不是退出。
+- **全局快捷键**（v1.4.0 起）：`Ctrl+Alt+1/2/3` 切档、`Ctrl+Alt+M` 显示/隐藏窗口，切档后弹系统通知、同步托盘勾选；被其它程序占用的组合键会在灯光页显示实际注册数量。
 - 未安装官方控制中心时，`ec.init()` 与 MQTT 都会失败，界面自动降级为只读展示并说明原因，不崩溃、不伪造。
 - `npm run dist` 直接复用 `node_modules/electron/dist` 打包（`-c.electronDist`），不再次从 GitHub 下载 Electron；网络受限时也能离线出包。`koffi` 的原生 `.node` 通过 `asarUnpack` 解包到 `app.asar.unpacked`，否则运行时加载失败。产物在 `release/`，已被 `.gitignore` 忽略。
 - 页面用 `window.desktop` 判断运行环境：有该对象时走真实数据，没有时保持网页版的模拟数据。
@@ -106,9 +113,8 @@ npm run dist         # 打便携版 release/MECHREVO-Control-<version>.exe
 - 负载曲线、温度、风扇三块实时图表
 - SPC 设置与应用性能配置绑定（增删应用规则）
 
-**灯光**
-- 键区预览，支持静态 / 呼吸 / 波浪 / 彩虹 / 随声五种灯效
-- 亮度滑杆、分区控制，灯效实时反映在键盘预览上
+**灯光**（网页版演示）
+- 键区预览与灯效动画仅用于网页版配色演示；桌面版的真实能力只有单色三档背光，RGB 相关选项已按「本机无硬件」移除
 
 **电池**
 - 电量环 + 预计续航、健康度 / 循环次数 / 设计容量 / 当前容量
@@ -190,9 +196,15 @@ mechrevo-control/
 
 | 按键 | 作用 |
 |---|---|
+| `Ctrl + Alt + 1` | 切到安静模式（全局，不开窗口也生效） |
+| `Ctrl + Alt + 2` | 切到均衡模式（全局） |
+| `Ctrl + Alt + 3` | 切到狂暴模式（全局） |
+| `Ctrl + Alt + M` | 显示 / 隐藏主窗口（全局） |
 | `Ctrl + K` | 聚焦搜索框 |
 | `Enter` | 跳转到第一个搜索结果 |
 | `Esc` | 清空搜索 / 收起 |
+
+> 全局快捷键只在桌面版注册；网页版没有系统级热键。
 
 ## 技术说明
 

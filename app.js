@@ -480,12 +480,14 @@
      充电上限、屏幕亮度、刷新率、电池容量 */
   const LOCK_INFO = {
     '风扇控制': '转速与占空比可实时读取；实测写入占空比后 EC 固件 1 秒内改回，转速由固件曲线接管',
-    'RGB 灯效': '本机键盘为单色背光（EC 只有一档亮度），没有 RGB 分区/颜色寄存器可用',
+    'RGB 灯效': '官方服务上报：LightbarSupport = 0、RGBLightbarSupport = 0、auroraExist = false，键盘 type = SingleZone；EC 里只有 1932 一个亮度寄存器，没有任何颜色通道。这些功能不是没做，是这台机器没有对应硬件。',
     '应用绑定': '需常驻的应用监控服务，本应用不实现',
     '色彩模式': '需厂商 RGB 灯控服务（本机未提供）',
     '色彩校正': '需显卡级 ICC 校色，本应用不改系统色彩配置',
     '全局快捷键': '需系统级全局热键钩子，本应用不注册',
   };
+  /* 硬件层面直接不存在的能力，标签写「本机不支持」，别让人以为是权限问题 */
+  const HARD_UNSUPPORTED = new Set(['RGB 灯效', '色彩模式']);
 
   function markLocked() {
     $$('[data-lock]').forEach(el => {
@@ -495,7 +497,9 @@
       if (head && !head.querySelector('.lock-chip')) {
         const chip = document.createElement('span');
         chip.className = 'mini-chip lock-chip';
-        chip.textContent = `只读 · ${el.dataset.lock}`;
+        chip.textContent = HARD_UNSUPPORTED.has(el.dataset.lock)
+          ? `本机不支持 · ${el.dataset.lock}`
+          : `只读 · ${el.dataset.lock}`;
         chip.title = why;
         head.appendChild(chip);
       }
@@ -621,6 +625,10 @@
 
   /* 窗口控制（仅桌面版显示） */
   if (desktop) {
+    /* 桌面版没有可靠的用户态 CPU 温度源（WMI 热区需管理员权限），
+       就把演示值清掉显示「—」，不再拿 62°C 冒充真实读数 */
+    state.cpuTemp = null;
+    state.fan = null;
     const wc = $('#winControls');
     if (wc) {
       wc.hidden = false;
@@ -629,6 +637,28 @@
       wc.querySelector('[data-win="close"]')?.addEventListener('click', () => desktop.close());
     }
     desktop.onTelemetry(applyTelemetry);
+    /* 托盘或全局快捷键切了档：同步界面状态，不要二次写 EC */
+    if (desktop.onModeChanged) {
+      desktop.onModeChanged(d => {
+        if (!d || !d.mode) return;
+        modePendingAt = Date.now();
+        setMode(d.mode, true);
+        toast(`切到${MODES[d.mode] || d.mode}模式（${d.source === 'tray' ? '托盘' : '快捷键'}）`);
+      });
+    }
+    /* 全局快捷键注册结果 */
+    if (desktop.hotkeyInfo) {
+      desktop.hotkeyInfo().then(info => {
+        const chip = $('#hotkeyChip');
+        if (!chip || !info) return;
+        if (info.testMode) { chip.textContent = '测试模式跳过'; return; }
+        chip.textContent = `已注册 ${info.registered}/${info.total}`;
+        chip.classList.toggle('lock-chip', info.registered < info.total);
+        if (info.registered < info.total) {
+          chip.title = '部分组合键被其它程序（如显卡驱动、输入法）占用，可在官方控制台里释放后重启本程序';
+        }
+      }).catch(() => {});
+    }
     desktop.device().then(info => { applyDevice(info); }).catch(() => {});
 
     /* 电池真实容量 */
@@ -879,12 +909,6 @@
     setKbLevel(+b.dataset.kb);
   });
 
-  $('#brightRange').addEventListener('input', e => {
-    state.lighting.brightness = +e.target.value;
-    $('#kbBrightLabel').textContent = `${e.target.value}%`;
-    applyKeyboard();
-  });
-
   $('#displayBright').addEventListener('input', e => {
     $('#brightDisplayLabel').textContent = `${e.target.value}%`;
   });
@@ -1006,85 +1030,25 @@
   function applyKeyboard() {
     const keys = $$('.kb-key');
     if (!keys.length) return;
-    const { effect, color, brightness, on } = state.lighting;
+    const { brightness, on } = state.lighting;
     const kb = $('#keyboard');
-    kb.style.setProperty('--kb-b', on ? brightness / 100 : 0);
+    if (kb) kb.style.setProperty('--kb-b', on ? brightness / 100 : 0);
 
-    keys.forEach((k, i) => {
+    /* 单色键盘：只有亮/灭与三档亮度，不做任何颜色或灯效动画 */
+    keys.forEach(k => {
       k.className = k.className.replace(/\beff-\w+\b/g, '').trim();
       k.classList.toggle('lit', on);
       k.style.removeProperty('animation-delay');
-
-      if (effect === 'rainbow') {
-        const hue = Math.round((i * 360 / keys.length + (Date.now() / 40) % 360)) % 360;
-        k.style.setProperty('--glow', `hsl(${hue},58%,60%)`);
-      } else {
-        k.style.setProperty('--glow', color);
-      }
-
-      if (effect !== 'static') {
-        k.classList.add(`eff-${effect}`);
-        const col = i % 14;
-        if (effect === 'wave') k.style.animationDelay = `${col * 0.07}s`;
-        if (effect === 'breath') k.style.animationDelay = `${(r3(i))}s`;
-        if (effect === 'audio') k.style.animationDelay = `${(i * 0.137) % 1.4}s`;
-      }
+      k.style.removeProperty('--glow');
     });
 
-    $('#effectChip').textContent = {
-      static: '静态', breath: '呼吸', wave: '波浪', rainbow: '彩虹', audio: '随声'
-    }[effect];
-
-    /* 桌面版：芯片显示真实 EC 档位，不被演示灯效覆盖 */
-    if (desktop && state.lighting.level != null) {
-      $('#effectChip').textContent = ['关', '低', '高'][state.lighting.level];
-    }
-
+    const lv = state.lighting.level == null ? (on ? 1 : 0) : state.lighting.level;
+    const name = ['关', '低', '高'][lv] || '关';
+    const chip = $('#effectChip');
+    if (chip) chip.textContent = name;
     const foot = $('.fcard[data-view="lighting"] .fcard-foot span');
-    if (foot) foot.textContent = `${effect === 'static' ? '静态' : $('#effectChip').textContent} · ${colorName(color)}`;
+    if (foot) foot.textContent = `单色背光 · ${name}`;
   }
-
-  function r3(i) {
-    /* 呼吸灯错峰延迟 */
-    return ((i * 37) % 100) / 100 * 1.2;
-  }
-
-  function colorName(hex) {
-    const map = {
-      '#7d93b2': '暖金', '#c98f88': '朱砂', '#7fa392': '青玉',
-      '#7d93b2': '雾蓝', '#5a6577': '月白', '#a89cc9': '紫藤'
-    };
-    return map[hex.toLowerCase()] || '自定义';
-  }
-
-  $('#effectSeg')?.addEventListener('click', e => {
-    const b = e.target.closest('button[data-effect]');
-    if (!b) return;
-    state.lighting.effect = b.dataset.effect;
-    $$('#effectSeg button').forEach(x => x.classList.toggle('active', x === b));
-    applyKeyboard();
-  });
-
-  $('#swatches')?.addEventListener('click', e => {
-    const b = e.target.closest('.swatch');
-    if (!b) return;
-    state.lighting.color = b.dataset.color;
-    $$('#swatches .swatch').forEach(x => x.classList.toggle('active', x === b));
-    const ci = $('#customColor');
-    if (ci) ci.value = b.dataset.color;
-    applyKeyboard();
-  });
-
-  $('#customColor')?.addEventListener('input', e => {
-    state.lighting.color = e.target.value;
-    $$('#swatches .swatch').forEach(x => x.classList.remove('active'));
-    applyKeyboard();
-  });
-
-  /* 彩虹模式下轻量刷新色相 */
-  setInterval(() => {
-    if (state.lighting.effect === 'rainbow' && state.lighting.on) applyKeyboard();
-  }, 400);
 
   /* ------------------------------------------------------------
      应用绑定
@@ -1174,12 +1138,13 @@
     if (desktop) {
       const parts = [];
       if (state.gpuTemp != null) parts.push(`GPU ${Math.round(state.gpuTemp)}°C`);
-      if (state.cpu.usage != null) parts.push(`CPU 负载 ${Math.round(state.cpu.usage)}%`);
+      if (state.cpu != null) parts.push(`CPU 负载 ${Math.round(state.cpu)}%`);
+      if (state.fan != null) parts.push(`风扇 ${state.fan} RPM`);
       if (state.memGB != null) parts.push(`内存 ${state.memGB.toFixed(1)} / ${Math.round(state.memTotalGB)} GB`);
       if (realBattInfo && realBattInfo.design) {
         parts.push(`电池健康 ${Math.round(realBattInfo.full / realBattInfo.design * 100)}%`);
       }
-      parts.push('CPU 温度 / 风扇转速本机无法读取');
+      parts.push('CPU 温度需管理员权限的传感器，本应用不伪造');
       toast(`体检：${parts.join(' · ')}`);
       return;
     }

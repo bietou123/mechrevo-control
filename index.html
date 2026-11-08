@@ -84,7 +84,7 @@
     </nav>
 
     <div class="sidebar-foot">
-      <span>v1.3.1 · 开源重制版</span>
+      <span>v1.4.0 · 开源重制版</span>
       <button class="power-btn" id="powerBtn" title="电源">
         <svg viewBox="0 0 24 24"><path d="M12 3v8"/><path d="M6.5 6.5a8 8 0 1 0 11 0"/></svg>
       </button>
@@ -351,7 +351,7 @@
           <div>
             <p class="eyebrow">Lighting</p>
             <h1>灯光设置</h1>
-            <p class="page-sub">键盘背光 · RGB 区域控制</p>
+            <p class="page-sub">单色背光 · 三档亮度 · 直达 EC</p>
           </div>
           <span class="switch wide on" data-switch id="lightMaster"><i></i></span>
         </header>
@@ -387,41 +387,14 @@
         </div>
 
         <section class="panel" data-lock="RGB 灯效">
-          <div class="panel-head"><div><h2>灯效控制</h2><p>键盘 / 品牌灯 / 底部灯带</p></div></div>
-          <div class="ctrl-block">
-            <label class="ctrl-label">灯效模式</label>
-            <div class="segmented wrap" id="effectSeg">
-              <button data-effect="static" class="active">静态</button>
-              <button data-effect="breath">呼吸</button>
-              <button data-effect="wave">波浪</button>
-              <button data-effect="rainbow">彩虹</button>
-              <button data-effect="audio">随声</button>
-            </div>
+          <div class="panel-head"><div><h2>RGB 灯效</h2><p>本机没有 RGB 控制器</p></div></div>
+          <div class="toggle-list">
+            <div class="toggle-row"><span>灯效模式（呼吸 / 波浪 / 彩虹 / 随声）</span><span class="na-tag">无硬件</span></div>
+            <div class="toggle-row"><span>颜色选择与自定义取色</span><span class="na-tag">无颜色寄存器</span></div>
+            <div class="toggle-row"><span>亮度无级调节</span><span class="na-tag">仅三档</span></div>
+            <div class="toggle-row"><span>品牌 Logo 灯 / 底部氛围灯带</span><span class="na-tag">无硬件</span></div>
           </div>
-          <div class="ctrl-block">
-            <label class="ctrl-label">颜色</label>
-            <div class="swatches" id="swatches">
-              <button class="swatch active" style="--c:#7d93b2" data-color="#7d93b2" title="暖金"></button>
-              <button class="swatch" style="--c:#c98f88" data-color="#c98f88" title="朱砂"></button>
-              <button class="swatch" style="--c:#7fa392" data-color="#7fa392" title="青玉"></button>
-              <button class="swatch" style="--c:#7d93b2" data-color="#7d93b2" title="雾蓝"></button>
-              <button class="swatch" style="--c:#5a6577" data-color="#5a6577" title="月白"></button>
-              <button class="swatch" style="--c:#a89cc9" data-color="#a89cc9" title="紫藤"></button>
-              <input type="color" id="customColor" class="color-input" value="#7d93b2" title="自定义颜色">
-            </div>
-          </div>
-          <div class="ctrl-block">
-            <label class="ctrl-label">亮度</label>
-            <div class="slider-row"><input type="range" id="brightRange" min="10" max="100" value="70" style="--p:63%"></div>
-          </div>
-          <div class="ctrl-block">
-            <label class="ctrl-label">亮度区域</label>
-            <div class="toggle-list">
-              <div class="toggle-row"><span>键盘背光</span><span class="mini-switch on" data-switch></span></div>
-              <div class="toggle-row"><span>品牌 Logo 灯</span><span class="mini-switch on" data-switch></span></div>
-              <div class="toggle-row"><span>底部氛围灯带</span><span class="mini-switch" data-switch></span></div>
-            </div>
-          </div>
+          <p class="panel-tip">官方服务上报的支持表写明：<b>LightbarSupport = 0</b>、<b>RGBLightbarSupport = 0</b>、<b>auroraExist = false</b>，键盘 <b>type = SingleZone</b>；EC 里也只有 1932 一个亮度寄存器，不存在任何颜色通道。所以这些选项不是没做，是这台机器没有对应硬件——已整块移除，不再留能点却没反应的空按钮骗人。</p>
         </section>
       </section>
 
@@ -641,14 +614,15 @@
           </section>
         </div>
 
-        <section class="panel" data-lock="全局快捷键">
-          <div class="panel-head"><div><h2>快捷键</h2><p>全局生效</p></div></div>
+        <section class="panel" id="hotkeyPanel">
+          <div class="panel-head"><div><h2>全局快捷键</h2><p>不开窗口也能切换</p></div><span class="mini-chip" id="hotkeyChip">注册中</span></div>
           <div class="key-list">
-            <div class="key-row"><span>打开控制台</span><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>C</kbd></div>
-            <div class="key-row"><span>切换性能模式</span><kbd>Fn</kbd><kbd>+</kbd><kbd>Q</kbd></div>
-            <div class="key-row"><span>调节键盘亮度</span><kbd>Fn</kbd><kbd>+</kbd><kbd>F1 / F2</kbd></div>
-            <div class="key-row"><span>全屏截图</span><kbd>Win</kbd><kbd>+</kbd><kbd>Shift</kbd><kbd>S</kbd></div>
+            <div class="key-row"><span>安静模式</span><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>1</kbd></div>
+            <div class="key-row"><span>均衡模式</span><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>2</kbd></div>
+            <div class="key-row"><span>狂暴模式</span><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>3</kbd></div>
+            <div class="key-row"><span>显示 / 隐藏窗口</span><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>M</kbd></div>
           </div>
+          <p class="panel-tip">由主进程注册系统级热键，切档会走和界面完全相同的 EC 通道，并回读确认；切换结果同时弹出系统通知、同步托盘菜单勾选。</p>
         </section>
       </section>
 
@@ -667,7 +641,7 @@
             <svg viewBox="0 0 40 40"><path d="M8 31V9l12 12L32 9v22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 31v-9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
           </div>
           <h2>MECHREVO 电竞控制台</h2>
-          <p class="about-ver">版本 1.3.1 · 开源重制版</p>
+          <p class="about-ver">版本 1.4.0 · 开源重制版</p>
           <p class="about-desc">
             以「莫奈色系」印象派低饱和视觉重制的电竞控制台界面，覆盖常规设置、性能、灯光、电池、显示与设备信息六大模块。
             纯前端实现，可直接在浏览器中运行，亦可作为桌面端 UI 原型复用。
@@ -677,6 +651,17 @@
             <div><span>技术栈</span><b>原生 HTML / CSS / JS</b></div>
             <div><span>作者</span><b>bietou123</b></div>
           </div>
+        </section>
+
+        <section class="panel update-panel">
+          <div class="panel-head"><div><h2>本版更新</h2><p>v1.4.0 · 2026-11-08</p></div></div>
+          <ul class="update-list">
+            <li><b>灯光页重做</b><span>删掉全部点不动的 RGB 假控件，改成以官方支持表为证据的能力说明；只保留真正写 EC 的单色三档背光。</span></li>
+            <li><b>托盘直接切档</b><span>右键托盘图标即可选安静 / 均衡 / 狂暴，当前档位打勾，不用再打开窗口。</span></li>
+            <li><b>托盘实时读数</b><span>鼠标悬停图标显示当前档位、GPU 温度与双风扇转速，每 2 秒刷新。</span></li>
+            <li><b>全局快捷键</b><span>Ctrl+Alt+1/2/3 切档，Ctrl+Alt+M 显示或隐藏窗口，切档后弹系统通知。</span></li>
+            <li><b>不再伪造 CPU 温度</b><span>桌面版读不到 CPU 温度就显示「—」，不再固定显示 62°C。</span></li>
+          </ul>
         </section>
       </section>
 

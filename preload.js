@@ -27,4 +27,8 @@ contextBridge.exposeInMainWorld('desktop', {
   readEc: (addr) => ipcRenderer.invoke('hw:raw', addr),
   setKeyboardLevel: (level) => ipcRenderer.invoke('hw:setKeyboard', level),
   setChargeLimit: (up, down) => ipcRenderer.invoke('hw:setCharge', up, down),
+
+  // 托盘 / 全局快捷键切档后回推，界面据此同步（不重复写 EC）
+  onModeChanged: (cb) => ipcRenderer.on('mode:changed', (_e, data) => cb(data)),
+  hotkeyInfo: () => ipcRenderer.invoke('hotkey:info'),
 });

@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage, globalShortcut, Notification } = require('electron');
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
@@ -419,24 +419,119 @@ function createTray() {
   try {
     const icon = nativeImage.createFromPath(path.join(__dirname, 'assets', 'icon.ico'));
     tray = new Tray(icon);
-    const toggle = () => {
-      if (!win) return;
-      if (win.isVisible() && !win.isMinimized()) win.hide();
-      else { win.show(); win.focus(); }
-    };
     tray.setToolTip('MECHREVO 电竞控制台');
-    tray.setContextMenu(Menu.buildFromTemplate([
-      { label: '显示主界面', click: () => { if (win) { win.show(); win.focus(); } } },
-      { label: '隐藏主界面', click: () => { if (win) win.hide(); } },
-      { type: 'separator' },
-      { label: '退出', click: () => { quitting = true; app.quit(); } },
-    ]));
-    tray.on('click', toggle);
-    tray.on('double-click', () => { if (win) { win.show(); win.focus(); } });
+    rebuildTrayMenu();
+    tray.on('click', toggleWindow);
+    tray.on('double-click', () => showWindow());
   } catch (e) {
     tray = null;
     console.error('托盘创建失败:', e && e.message);
   }
+}
+
+/* ---------------- 托盘：直接切档（不开窗口） ---------------- */
+
+const MODE_NAMES = { quiet: '安静', balanced: '均衡', turbo: '狂暴' };
+let hotkeyCount = 0;
+
+function showWindow() {
+  if (!win || win.isDestroyed()) return;
+  win.show();
+  win.focus();
+}
+
+function toggleWindow() {
+  if (!win || win.isDestroyed()) return;
+  if (win.isVisible() && !win.isMinimized()) win.hide();
+  else showWindow();
+}
+
+function rebuildTrayMenu() {
+  if (!tray) return;
+  const mode = profileState().mode;
+  const modeItem = (key) => ({
+    label: MODE_NAMES[key],
+    type: 'radio',
+    checked: mode === key,
+    click: () => { applyModeEverywhere(key, 'tray'); },
+  });
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: '显示主界面', click: showWindow },
+    { label: '隐藏主界面', click: () => { if (win && !win.isDestroyed()) win.hide(); } },
+    { type: 'separator' },
+    { label: '性能模式', enabled: false },
+    modeItem('quiet'),
+    modeItem('balanced'),
+    modeItem('turbo'),
+    { type: 'separator' },
+    { label: '退出', click: () => { quitting = true; app.quit(); } },
+  ]));
+}
+
+let trayTip = '';
+function updateTrayTooltip() {
+  if (!tray) return;
+  const p = profileState();
+  const parts = ['MECHREVO'];
+  if (p.mode) parts.push(MODE_NAMES[p.mode]);
+  if (gpu && gpu.ok && gpu.temp != null) parts.push(`GPU ${Math.round(gpu.temp)}°C`);
+  if (hw && (hw.fan1 || hw.fan2)) parts.push(`风扇 ${Math.max(hw.fan1 || 0, hw.fan2 || 0)} RPM`);
+  const tip = parts.join(' · ');
+  if (tip !== trayTip) { trayTip = tip; tray.setToolTip(tip); }
+}
+
+function notifyMode(mode, profile) {
+  try {
+    if (!Notification.isSupported()) return;
+    const pl = profile && profile.pl1 != null ? ` · PL1 ${profile.pl1}W` : '';
+    const n = new Notification({
+      title: '性能模式已切换',
+      body: `${MODE_NAMES[mode] || mode}${pl}`,
+      icon: path.join(__dirname, 'assets', 'icon.ico'),
+      silent: true,
+    });
+    n.on('click', showWindow);
+    n.show();
+  } catch { /* 通知失败不影响档位切换 */ }
+}
+
+/* 托盘 / 快捷键切档：和界面走同一条 EC 通道，成功后同步界面与托盘 */
+async function applyModeEverywhere(mode, source) {
+  const r = await setOperatingMode(mode);
+  if (r && r.ok) {
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('mode:changed', { mode, profile: r.profile, source });
+    }
+    if (source !== 'tray') notifyMode(mode, r.profile);
+    rebuildTrayMenu();
+    updateTrayTooltip();
+  } else if (source !== 'tray') {
+    notifyMode(mode, null);
+  }
+  return r;
+}
+
+/* ---------------- 全局快捷键 ---------------- */
+
+const HOTKEYS = [
+  ['CommandOrControl+Alt+1', 'quiet'],
+  ['CommandOrControl+Alt+2', 'balanced'],
+  ['CommandOrControl+Alt+3', 'turbo'],
+];
+
+function registerHotkeys() {
+  if (TEST_MODE) return 0;
+  let n = 0;
+  for (const [acc, mode] of HOTKEYS) {
+    try {
+      if (globalShortcut.register(acc, () => { applyModeEverywhere(mode, 'hotkey'); })) n++;
+    } catch { /* 被别的程序占用就跳过 */ }
+  }
+  try {
+    if (globalShortcut.register('CommandOrControl+Alt+M', toggleWindow)) n++;
+  } catch { /* 同上 */ }
+  hotkeyCount = n;
+  return n;
 }
 
 function createWindow() {
@@ -494,6 +589,9 @@ function createWindow() {
     if (tick % 8 === 0) battery = await readBattery();
     tick++;
     pushTelemetry();
+    // 托盘悬浮读数 + 菜单勾选（档位可能被 Fn 键或官方控制台改动）
+    updateTrayTooltip();
+    if (tick % 5 === 0) rebuildTrayMenu();
   }, 2000);
 
   setTimeout(async () => {
@@ -558,8 +656,26 @@ ipcMain.handle('hw:refresh', () => {
   return { hw, profile: profileState() };
 });
 
-app.whenReady().then(() => { createWindow(); createTray(); });
+/* 全局快捷键状态：界面用它显示「已注册 n/4」 */
+ipcMain.handle('hotkey:info', () => ({
+  registered: hotkeyCount,
+  total: HOTKEYS.length + 1,
+  testMode: TEST_MODE,
+  list: [
+    { acc: 'Ctrl+Alt+1', desc: '安静模式' },
+    { acc: 'Ctrl+Alt+2', desc: '均衡模式' },
+    { acc: 'Ctrl+Alt+3', desc: '狂暴模式' },
+    { acc: 'Ctrl+Alt+M', desc: '显示 / 隐藏窗口' },
+  ],
+}));
+
+app.whenReady().then(() => {
+  createWindow();
+  createTray();
+  registerHotkeys();
+});
 app.on('before-quit', () => { quitting = true; if (gcu) gcu.close(); if (tray) { tray.destroy(); tray = null; } });
+app.on('will-quit', () => { try { globalShortcut.unregisterAll(); } catch { /* 已退出 */ } });
 app.on('window-all-closed', () => { if (TEST_MODE) app.quit(); });
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
