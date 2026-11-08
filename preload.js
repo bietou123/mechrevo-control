@@ -17,4 +17,12 @@ contextBridge.exposeInMainWorld('desktop', {
   batteryInfo: () => ipcRenderer.invoke('battery:info'),
   displayModes: () => ipcRenderer.invoke('display:modes'),
   setRefresh: (hz) => ipcRenderer.invoke('display:setRefresh', hz),
+
+  // 硬件直控（EC 只读 + 官方控制中心 MQTT）
+  hwSnapshot: () => ipcRenderer.invoke('hw:snapshot'),
+  hwState: () => ipcRenderer.invoke('hw:state'),
+  hwRefresh: () => ipcRenderer.invoke('hw:refresh'),
+  getMode: () => ipcRenderer.invoke('hw:getMode'),
+  setMode: (mode) => ipcRenderer.invoke('hw:setMode', mode),
+  readEc: (addr) => ipcRenderer.invoke('hw:raw', addr),
 });

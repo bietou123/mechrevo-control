@@ -1,7 +1,7 @@
 {
   "name": "mechrevo-control",
   "productName": "MECHREVO Control",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "MECHREVO Z3 Pro 电竞控制台重设计（桌面版）",
   "main": "main.js",
   "author": "bietou123",
@@ -24,6 +24,8 @@
       "app.js",
       "main.js",
       "preload.js",
+      "ec.js",
+      "mqtt.js",
       "assets/icon.ico"
     ],
     "win": {
@@ -37,6 +39,9 @@
       ],
       "icon": "assets/icon.ico"
     },
+    "asarUnpack": [
+      "node_modules/koffi/**"
+    ],
     "portable": {
       "artifactName": "MECHREVO-Control-${version}.exe"
     }
@@ -44,5 +49,8 @@
   "devDependencies": {
     "electron": "^40.10.6",
     "electron-builder": "^26.0.0"
+  },
+  "dependencies": {
+    "koffi": "^3.3.7"
   }
 }

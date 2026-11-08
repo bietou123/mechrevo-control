@@ -4,9 +4,20 @@
 
 网页版是纯前端实现，**零依赖、零构建**，双击 `index.html` 即可打开，不需要联网、不需要安装任何东西。
 
-桌面版（Electron，v1.1.0 起）在此之上读取本机真实数据：CPU / GPU 负载与温度、内存占用、磁盘、电池状态、电源计划、屏幕亮度和可选刷新率。需要厂商 EC 驱动的能力（风扇转速直接控制、充电阈值、键盘灯效写入）在桌面版会明确提示本机不可用，不伪造成功。
+桌面版（Electron，v1.2.0 起）在此之上接入本机真实硬件：CPU / GPU 负载与温度、内存、电池、屏幕亮度与刷新率，并通过官方控制中心的本地 MQTT 服务（127.0.0.1:13688）切换**安静 / 均衡 / 狂暴**三档，用官方 `ACPIDriverDll.dll` **只读** EC 拿真实风扇转速（实测 4568 / 4427 RPM）与 PL1/PL2/PL4 功耗墙。做不到的能力会如实标注「只读 · 不可用」，绝不伪造成功。
 
-> ⚠️ 本项目是独立的界面设计稿，与机械革命（MECHREVO）官方无关。网页版的温度、转速、电量、序列号等数据为**前端模拟**；桌面版展示的是本机实测数据，但不具备官方控制台的全部硬件控制能力。
+> ⚠️ 本项目是独立的第三方客户端，与机械革命（MECHREVO）官方无关。网页版的数据为**前端模拟**；桌面版展示本机实测值，但只覆盖下表所列能力。
+
+### 桌面版实测能力
+
+| 功能 | 状态 | 通道 |
+|---|---|---|
+| 性能 / 功耗档 | ✅ 可控制 | `Fan/Control` → `OPERATING_*_MODE`，实测 PL1 = 35 / 60 / 75 W，同时切换 Windows 电源计划 |
+| 风扇转速 | ✅ 可读取 | 只读 EC 寄存器 `1124/1125`、`1132/1131`，实时刷新 |
+| 充电阈值 | ❌ 不可用 | 官方 GCUService 本机未启用 BatteryProtection 模块（`BatteryProtection/Control` 无订阅、`System/BatteryProtection` 从不发布） |
+| 键盘背光 | ❌ 不可写 | 本机为单色键盘 OSD-only 模式：官方服务只读状态、刻意不写 EC |
+
+后两项如需实现，只能绕过官方服务直接 `WriteEC` —— **本项目不做 EC 写入**，见下方「安全边界」。
 
 ---
 
@@ -14,7 +25,7 @@
 
 | 版本 | 说明 | 下载 |
 |---|---|---|
-| 桌面版 v1.1.0 | Windows 便携版，免安装，双击即用（约 91 MB） | [MECHREVO-Control-1.1.0.exe](https://github.com/bietou123/mechrevo-control/releases/download/v1.1.0/MECHREVO-Control-1.1.0.exe) |
+| 桌面版 v1.2.0 | Windows 便携版，免安装，双击即用（约 91 MB） | [MECHREVO-Control-1.2.0.exe](https://github.com/bietou123/mechrevo-control/releases/download/v1.2.0/MECHREVO-Control-1.2.0.exe) |
 | 网页版 | 零依赖纯前端，克隆仓库后双击 `index.html` | [全部发布](https://github.com/bietou123/mechrevo-control/releases) |
 
 > 便携版未做代码签名，Windows SmartScreen 可能提示「未知发布者」，选择「更多信息 → 仍要运行」即可。
@@ -47,17 +58,31 @@
 ## 桌面版（Electron）
 
 ```bash
-npm install          # 只装 Electron 与 electron-builder
-npm start            # 开发运行
+npm install          # Electron、electron-builder 与 koffi（用户态调用 DLL）
+npm start            # 开发运行（需本机已安装机械革命电竞控制台）
 npm run dist         # 打便携版 release/MECHREVO-Control-<version>.exe
 ```
 
-- `main.js` 是主进程：窗口控制、遥测推送、电源计划、亮度与显示模式；`preload.js` 只通过 `contextBridge` 暴露上述接口。
-- `npm run dist` 直接复用 `node_modules/electron/dist` 打包（`-c.electronDist`），不再次从 GitHub 下载 Electron；网络受限时也能离线出包。产物在 `release/`，已被 `.gitignore` 忽略。
+- `main.js` 是主进程：窗口控制、遥测推送、电源计划、亮度与显示模式、硬件控制 IPC。
+- `ec.js` 用 `koffi` 加载官方 `ACPIDriverDll.dll`，**只声明 `ReadEC`**，提供风扇转速 / 功耗墙 / 键盘灯 / 充电阈值寄存器的只读快照。
+- `mqtt.js` 是手写的 MQTT 3.1.1 最小客户端，连本机 `GCUBridge.exe`（127.0.0.1:13688），向 `Fan/Control` 发 `OPERATING_OFFICE_MODE` / `OPERATING_GAMING_MODE` / `OPERATING_TURBO_MODE` 切换档位，订阅 `Fan/Status`、`Keyboard/Status` 等状态主题。
+- `preload.js` 只通过 `contextBridge` 暴露上述接口，渲染进程无 Node 权限。
+- 未安装官方控制中心时，`ec.init()` 与 MQTT 都会失败，界面自动降级为只读展示并说明原因，不崩溃、不伪造。
+- `npm run dist` 直接复用 `node_modules/electron/dist` 打包（`-c.electronDist`），不再次从 GitHub 下载 Electron；网络受限时也能离线出包。`koffi` 的原生 `.node` 通过 `asarUnpack` 解包到 `app.asar.unpacked`，否则运行时加载失败。产物在 `release/`，已被 `.gitignore` 忽略。
 - 页面用 `window.desktop` 判断运行环境：有该对象时走真实数据，没有时保持网页版的模拟数据。
-- 自动化测试可设 `MECHREVO_TEST=1` 隐藏窗口并开 CDP 调试端口（默认 9411）。
-- 已验证：v1.1.0 在 Windows 11 + RTX 3060 上以隐藏窗口方式启动，8 个视图全部渲染，无控制台错误；桌面遥测、电源计划、亮度、刷新率读取正常。
+- 自动化测试可设 `MECHREVO_TEST=1` 隐藏窗口并开 CDP 调试端口（默认 9411），配合 `node cdp-eval.cjs "<表达式>"` 在屏外取值。
+- 已验证：v1.2.0 dev 版、`win-unpacked` 版与便携 exe 本体三种形态，均在 Windows 11 + RTX 3060 上以隐藏窗口启动，EC 直读 `fan1=4568 / fan2=4427`、`PL1=75`，档位双向切换实测 `quiet → PL1 35 / 节能`、`turbo → PL1 75 / 高性能`。
 
+### 安全边界
+
+本项目**从不调用 `WriteEC`**，不刷写 EC、不替换或修改 `UWACPIDriver.sys`、不做驱动提权。所有硬件访问都是：
+1. 通过官方 DLL 的只读 `ReadEC` 取寄存器；
+2. 通过官方服务自己监听的本地回环 MQTT 端口发控制命令（与官方 UI 走同一条路径）。
+
+空调制命令由官方 `GCUService.exe` 执行，风险边界与官方控制台一致。想实现充电阈值或键盘背光写入，需要 `WriteEC`，那属于另一个风险等级，本项目不做。
+
+
+> 以下功能清单按**网页版**（纯前端演示）描述。桌面版在此基础上接入真实硬件，可用能力以上方「桌面版实测能力」表为准；表中标 ❌ 的面板在桌面版会显示「只读 · 不可用」并说明原因。
 
 **控制台**
 - CPU / GPU / 风扇 / 内存 四张指标卡，带 60 秒滚动迷你曲线
@@ -133,8 +158,11 @@ mechrevo-control/
 ├── index.html        # 页面结构与文案
 ├── style.css         # 全部视觉样式与动画
 ├── app.js            # 视图切换、搜索、图表、遥测（网页版模拟 / 桌面版真实）
-├── main.js           # Electron 主进程：窗口、遥测、电源计划、亮度、刷新率
+├── main.js           # Electron 主进程：窗口、遥测、电源计划、亮度、刷新率、硬件 IPC
+├── ec.js             # koffi 只读加载 ACPIDriverDll.dll（ReadEC）
+├── mqtt.js           # 手写 MQTT 3.1.1 最小客户端，连官方 GCUBridge
 ├── preload.js        # contextBridge 暴露 window.desktop 接口
+├── cdp-eval.cjs      # 屏外 CDP 取值脚本（开发调试用）
 ├── assets/           # 应用图标
 ├── docs/preview/     # README 预览截图
 ├── LICENSE

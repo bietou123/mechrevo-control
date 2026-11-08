@@ -5,12 +5,17 @@ const path = require('path');
 const os = require('os');
 const fs = require('fs');
 const { execFile } = require('child_process');
+const ec = require('./ec.js');
+const { GcuClient } = require('./mqtt.js');
 
 let win = null;
 let gpu = { ok: false };
 let battery = null;
 let device = null;
 let lastCpu = null;
+let hw = null;            // 最近一次 EC 快照
+let gcu = null;           // 官方控制中心 MQTT 客户端
+let hwInited = false;
 
 // 自动化测试钩子：MECHREVO_TEST=1 时窗口不显示、可连 CDP，不影响正常使用
 const TEST_MODE = process.env.MECHREVO_TEST === '1';
@@ -125,22 +130,27 @@ async function readBatteryInfo() {
 
 /* ---------------- 真实控制：电源方案 / 屏幕亮度 ---------------- */
 
-const POWER_ALIAS = { quiet: 'SCHEME_MAX', balanced: 'SCHEME_BALANCED', turbo: 'SCHEME_MIN' };
+// 用 GUID 而不是 SCHEME_MIN/MAX 别名：中文系统别名解析不稳定，GUID 才可靠
+const POWER_GUID = {
+  quiet: 'a1841308-3541-4fab-bc81-f71556f20b4a',      // 节能
+  balanced: '381b4222-f694-41f0-9685-ff5bb260df2e',   // 平衡
+  turbo: '8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c',      // 高性能
+};
 
 async function readPowerPlan() {
   const out = await run('powercfg.exe', ['/getactivescheme'], 3000);
   if (!out) return { ok: false };
   const m = out.match(/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\s*\(([^)]*)\)/i);
   if (!m) return { ok: false };
-  return { ok: true, guid: m[1], name: m[2] };
+  return { ok: true, guid: m[1].toLowerCase(), name: m[2] };
 }
 
 async function setPowerPlan(mode) {
-  const alias = POWER_ALIAS[mode];
-  if (!alias) return { ok: false, error: 'unknown mode' };
-  await run('powercfg.exe', ['/setactive', alias], 5000);
+  const guid = POWER_GUID[mode];
+  if (!guid) return { ok: false, error: 'unknown mode' };
+  await run('powercfg.exe', ['/setactive', guid], 5000);
   const now = await readPowerPlan();
-  return { ok: now.ok, plan: now };
+  return { ok: now.ok && now.guid === guid, plan: now };
 }
 
 async function readBrightness() {
@@ -283,7 +293,110 @@ function pushTelemetry() {
     mem: { used: memTotal - memFree, total: memTotal },
     gpu,
     battery,
+    hw,
+    gcu: { connected: !!(gcu && gcu.connected) },
   });
+}
+
+/* ---------------- 真实控制：风扇 / 性能档 / 键盘灯（官方控制中心通道） ---------------- */
+
+// 官方 GCUService 的档位动作词，大小写必须完全一致（实测只有全大写 GETSTATUS 有响应）
+const MODE_TO_ACTION = {
+  quiet: 'OPERATING_OFFICE_MODE',
+  balanced: 'OPERATING_GAMING_MODE',
+  turbo: 'OPERATING_TURBO_MODE',
+};
+const OM_TO_MODE = { 0: 'quiet', 1: 'balanced', 2: 'turbo' };
+
+function initHardware() {
+  const ecOk = ec.init();
+  if (TEST_MODE) console.log('[EC]', JSON.stringify(ec.status()));
+  hw = ecOk ? ec.snapshot() : null;
+  if (ecOk) {
+    const t = setInterval(() => { hw = ec.snapshot(); }, 1500);
+    if (t.unref) t.unref();
+  }
+
+  gcu = new GcuClient();
+  gcu.on('connect', () => {
+    if (TEST_MODE) console.log('[GCU] connected');
+    for (const topic of ['Fan/Control', 'Keyboard/Ctrl', 'Setting/Control']) {
+      gcu.publish(topic, { Action: 'GETSTATUS' });
+    }
+  });
+  gcu.on('status', (topic, payload) => {
+    if (TEST_MODE) console.log('[GCU]', topic, payload.length + 'B');
+  });
+  gcu.connect();
+}
+
+function profileState() {
+  const fan = gcu ? gcu.get('Fan/Status') : null;
+  const om = fan ? Number(fan.OperatingMode) : null;
+  return {
+    operatingMode: Number.isFinite(om) ? om : null,
+    mode: Number.isFinite(om) ? OM_TO_MODE[om] || null : null,
+    pl1: fan ? fan.CPU_PL1 : null,
+    pl2: fan ? fan.CPU_PL2 : null,
+    pl4: fan ? fan.CPU_PL4 : null,
+    powerMode: fan ? fan.PowerMode : null,
+  };
+}
+
+async function setOperatingMode(mode) {
+  const action = MODE_TO_ACTION[mode];
+  if (!action) return { ok: false, error: 'unknown mode' };
+  if (!gcu || !gcu.connected) return { ok: false, error: '官方控制中心服务未运行（GCUBridge 未连接）' };
+
+  const before = profileState();
+  gcu.publish('Fan/Control', { Action: action });
+  // 等 EC 真正切过去，再回读确认
+  await new Promise((r) => setTimeout(r, 700));
+  gcu.publish('Fan/Control', { Action: 'GETSTATUS' });
+  await new Promise((r) => setTimeout(r, 500));
+  const after = profileState();
+  hw = ec.status().ok ? ec.snapshot() : hw;
+
+  // Windows 电源方案顺带对齐（失败不影响硬件档位）
+  const plan = await setPowerPlan(mode);
+
+  return {
+    ok: after.mode === mode,
+    mode: after.mode,
+    before: before.mode,
+    profile: after,
+    plan: plan.plan || null,
+    ec: hw,
+  };
+}
+
+function keyboardState() {
+  const kb = gcu ? gcu.get('Keyboard/Status') : null;
+  if (!kb) return { available: false, reason: '官方服务未返回 Keyboard/Status' };
+  return {
+    available: true,
+    solution: kb.solution,
+    type: kb.type,
+    powerStatus: kb.powerStatus,
+    brightness: kb.brightNess,
+    acBrightness: kb.ACBrightness,
+    dcBrightness: kb.DCBrightness,
+    singleZonePowerSupport: kb.SingleZonePowerSupport,
+    ecLevel: hw ? hw.kbLight : null,
+    writable: false,
+    note: '本机键盘灯为 OSD-only 模式：官方服务只读状态、不提供写接口（实测 5 类写命令全部无响应）',
+  };
+}
+
+function chargeState() {
+  const fan = gcu ? gcu.get('Fan/Status') : null;
+  return {
+    available: false,
+    ecUp: hw ? hw.chg[0] : null,
+    ecDown: hw ? hw.chg[1] : null,
+    fanHasField: !!(fan && 'BatteryChargingLimit' in fan),
+    reason: '官方 GCUService 本机未启用 BatteryProtection 模块（BatteryProtection/Control 无订阅、System/BatteryProtection 从未发布、ItemSupport 无相关支持位）',
+  };
 }
 
 /* ---------------- 窗口 ---------------- */
@@ -327,6 +440,8 @@ function createWindow() {
     return { action: 'deny' };
   });
 
+  if (!hwInited) { hwInited = true; initHardware(); }
+
   // 轮询：遥测 2 秒，电池 15 秒
   let tick = 0;
   setInterval(async () => {
@@ -366,7 +481,30 @@ ipcMain.handle('battery:info', async () => {
 ipcMain.handle('display:modes', () => displayModes());
 ipcMain.handle('display:setRefresh', (_e, hz) => setRefresh(hz));
 
+/* 硬件直控接口：风扇 / 性能档 / 键盘灯 / 充电阈值（全部只读或走官方 MQTT） */
+ipcMain.handle('hw:snapshot', () => (hw || (ec.init() ? (hw = ec.snapshot()) : null)));
+ipcMain.handle('hw:state', () => ({
+  ec: ec.status(),
+  gcu: { connected: !!(gcu && gcu.connected) },
+  hw,
+  profile: profileState(),
+  keyboard: keyboardState(),
+  charge: chargeState(),
+}));
+ipcMain.handle('hw:getMode', () => profileState());
+ipcMain.handle('hw:setMode', (_e, mode) => setOperatingMode(mode));
+ipcMain.handle('hw:raw', (_e, addr) => ec.readEC(Number(addr) || 0));
+ipcMain.handle('hw:refresh', () => {
+  if (gcu && gcu.connected) {
+    gcu.publish('Fan/Control', { Action: 'GETSTATUS' });
+    gcu.publish('Keyboard/Ctrl', { Action: 'GETSTATUS' });
+  }
+  if (ec.status().ok) hw = ec.snapshot();
+  return { hw, profile: profileState() };
+});
+
 app.whenReady().then(createWindow);
+app.on('before-quit', () => { if (gcu) gcu.close(); });
 app.on('window-all-closed', () => app.quit());
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();

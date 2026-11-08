@@ -355,6 +355,22 @@
       state.battery = d.battery;
       applyBattery(d.battery.charge);
     }
+    /* 真实 EC 快照：风扇转速、PL1/PL2/PL4、键盘灯、充电阈值寄存器 */
+    if (d.hw) {
+      state.hw = d.hw;
+      const f = Math.max(d.hw.fan1 || 0, d.hw.fan2 || 0);
+      state.fan = f > 0 ? f : null;
+      fillHwMeta();
+    }
+    if (d.gcu) state.gcu = d.gcu;
+    if (d.profile) {
+      state.profile = d.profile;
+      applyProfile(d.profile);
+      /* 档位以硬件回读为准；刚点过按钮的 3 秒内不来回弹 */
+      if (d.profile.mode && d.profile.mode !== state.mode && Date.now() - modePendingAt > 3000) {
+        setMode(d.profile.mode, true);
+      }
+    }
     pushSeries('cpu', state.cpu);
     pushSeries('gpu', state.gpu);
     pushSeries('mem', state.mem);
@@ -451,20 +467,74 @@
     }
   }
 
-  /* 桌面版：锁定本机无法实现的控件（诚实标注，不假装生效） */
+  /* 桌面版：锁定本机确实无法实现的控件（诚实标注，不假装生效）
+     已确认可用的不再锁定：档位切换、风扇转速/占空比读取、屏幕亮度、刷新率、电池容量 */
+  const LOCK_INFO = {
+    '风扇控制': '转速可实时读取；自定义曲线需写 EC，本应用不写入',
+    '键盘灯控制': '本机为单色键盘灯 OSD 模式：官方服务只读状态、不提供写接口',
+    '充电阈值': '官方控制中心未启用电池保护模块，设置通道为空',
+    '应用绑定': '需常驻的应用监控服务，本应用不实现',
+    '色彩模式': '需厂商 RGB 灯控服务（本机未提供）',
+    '色彩校正': '需显卡级 ICC 校色，本应用不改系统色彩配置',
+    '全局快捷键': '需系统级全局热键钩子，本应用不注册',
+  };
+
   function markLocked() {
     $$('[data-lock]').forEach(el => {
       el.classList.add('vendor-locked');
       const head = el.querySelector('.panel-head') || el.querySelector('.page-head');
+      const why = LOCK_INFO[el.dataset.lock] || '本机不提供该厂商接口';
       if (head && !head.querySelector('.lock-chip')) {
         const chip = document.createElement('span');
         chip.className = 'mini-chip lock-chip';
-        chip.textContent = `需厂商驱动 · ${el.dataset.lock}`;
-        chip.title = '本机未安装机械革命控制中心；该功能依赖 EC / WMI 厂商接口，第三方程序无法直接控制。';
+        chip.textContent = `只读 · ${el.dataset.lock}`;
+        chip.title = why;
         head.appendChild(chip);
       }
+      const tip = el.querySelector('.panel-tip');
+      if (tip) tip.textContent = why;
     });
     $$('[data-demo]').forEach(el => el.remove());
+  }
+
+  /* 把 EC 只读数据的真实含义填进界面，避免「有数字但不知道是什么」 */
+  function fillHwMeta() {
+    const hw = state.hw;
+    if (!hw) return;
+
+    /* 键盘灯：本机是单色 OSD 模式，EC 只有一个亮度级别 */
+    const chip = $('#effectChip');
+    if (chip) {
+      chip.textContent = `单色 · 亮度 ${hw.kbLight}`;
+      chip.title = `EC 1932 = ${hw.kbLight}（0–255）；本机无 RGB 分区控制`;
+    }
+    const kbTip = $('#view-lighting .panel-tip');
+    if (kbTip) {
+      const b = state.keyboard && state.keyboard.brightness;
+      kbTip.textContent =
+        `本机键盘为单色背光：官方服务只读状态${b != null ? `（当前亮度 ${b}）` : ''}，` +
+        `实际由 EC 固件随 Fn 扫描码调整，不提供写接口。`;
+    }
+
+    /* 充电阈值：EC 寄存器常年为 0，官方服务未启用该模块 */
+    const c = state.chargeInfo;
+    const lim = $('#limitLabel');
+    if (lim && c) {
+      lim.textContent = (c.ecUp || c.ecDown) ? `${c.ecUp}%` : '未启用';
+      lim.title = `EC 1977=${c.ecUp} · 2000=${c.ecDown}`;
+    }
+    const chgTip = $('#view-battery .panel[data-lock] .panel-tip');
+    if (chgTip && c) {
+      chgTip.textContent = `${c.reason}（EC 1977=${c.ecUp} · 2000=${c.ecDown}）`;
+    }
+
+    /* 风扇：两把风扇的真实读数 */
+    const fanTip = $('#view-performance .panel[data-lock] .panel-tip');
+    if (fanTip) {
+      fanTip.textContent =
+        `EC 实时：主扇 ${hw.fan1} RPM · 副扇 ${hw.fan2} RPM · 占空比 ${hw.duty1}/255、${hw.duty2}/255。` +
+        `自定义曲线需写 EC，本应用只读。`;
+    }
   }
 
   /* 窗口控制（仅桌面版显示） */
@@ -514,6 +584,23 @@
       if (pf && !mode) pf.textContent = r.name || '—';
     }).catch(() => {});
 
+    /* 硬件真实状态：档位、风扇转速、键盘灯、充电阈值寄存器（EC 只读） */
+    if (desktop.hwState) {
+      desktop.hwState().then(s => {
+        if (!s) return;
+        if (s.profile) applyProfile(s.profile);
+        if (s.hw) {
+          state.hw = s.hw;
+          const f = Math.max(s.hw.fan1 || 0, s.hw.fan2 || 0);
+          if (f > 0) state.fan = f;
+        }
+        if (s.keyboard) state.keyboard = s.keyboard;
+        if (s.charge) state.chargeInfo = s.charge;
+        fillHwMeta();
+        render();
+      }).catch(() => {});
+    }
+
     markLocked();
 
     /* 被锁面板里的滑杆直接禁用，避免看起来能调实际无效 */
@@ -546,7 +633,7 @@
       if (seg) seg.innerHTML = '<span class="na-tag">无法读取显示模式</span>';
     });
 
-    $('#miniFan')?.setAttribute('title', '需要厂商 EC 或 LibreHardwareMonitor 才能读取风扇转速');
+    $('#miniFan')?.setAttribute('title', '风扇转速为 EC 寄存器 1124/1125、1131/1132 实时读数');
   }
 
   /* ------------------------------------------------------------
@@ -554,13 +641,32 @@
      ------------------------------------------------------------ */
   const modeSegs = [$('#modeSeg'), $('#modeSeg2')].filter(Boolean);
 
+  let modePendingAt = 0;
+
+  /* 把真实的 PL1/PL2/PL4 功耗墙上到界面提示，不额外占版面 */
+  function applyProfile(p) {
+    if (!p) return;
+    state.pl1 = p.pl1;
+    state.pl2 = p.pl2;
+    state.pl4 = p.pl4;
+    const pm = $('#pfMode');
+    if (pm) {
+      const mode = p.mode || state.mode;
+      const name = MODES[mode] ? MODES[mode].name : pm.textContent;
+      pm.textContent = p.pl1 != null ? `${name} · PL1 ${p.pl1}W` : name;
+      pm.title = p.pl1 != null
+        ? `CPU 功耗墙：PL1 ${p.pl1}W · PL2 ${p.pl2}W · PL4 ${p.pl4}W（EC 实时回读）`
+        : '';
+    }
+  }
+
   function setMode(mode, silent = false) {
     if (!MODES[mode]) return;
     state.mode = mode;
     modeSegs.forEach(seg => {
       $$('button', seg).forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
     });
-    $('#pfMode').textContent = MODES[mode].name;
+    $('#pfMode').textContent = state.pl1 != null ? `${MODES[mode].name} · PL1 ${state.pl1}W` : MODES[mode].name;
     $('#cardMode').textContent = MODES[mode].name;
 
     /* 快速切换联动 */
@@ -570,11 +676,19 @@
     if (silent) return;
 
     if (desktop) {
-      /* 桌面版：真的切换 Windows 电源方案 */
-      desktop.setPowerPlan(mode).then(r => {
-        if (r && r.ok) toast(`已切换至${MODES[mode].name}模式 · 电源方案：${r.plan.name}`);
-        else toast('电源方案切换失败，请检查系统权限');
-      }).catch(() => toast('电源方案切换失败'));
+      /* 桌面版：先切官方 EC 档位（真正的功耗墙），再顺带对齐 Windows 电源方案 */
+      modePendingAt = Date.now();
+      const p = desktop.setMode ? desktop.setMode(mode) : desktop.setPowerPlan(mode).then(r => ({ ok: r && r.ok, plan: r && r.plan }));
+      p.then(r => {
+        if (r && r.ok) {
+          const pl = r.profile && r.profile.pl1 != null ? ` · PL1 ${r.profile.pl1}W` : '';
+          const plan = r.plan && r.plan.name ? ` · ${r.plan.name}` : '';
+          toast(`已切换至${MODES[mode].name}模式${pl}${plan}`);
+          if (r.profile && r.profile.mode) applyProfile(r.profile);
+        } else {
+          toast(r && r.error ? r.error : '档位切换失败');
+        }
+      }).catch(() => toast('档位切换失败'));
       return;
     }
     toast(`已切换至${MODES[mode].name}模式`);
@@ -593,10 +707,12 @@
     if (!desktop) toast('一键狂暴：功耗墙已解除，散热已全速');
   });
 
-  /* 本机无法通过第三方接口实现的功能：诚实提示，不假装生效 */
-  const VENDOR_MSG = '本机未安装厂商控制中心，键盘灯 / 风扇 / 充电阈值需要 EC 驱动，当前无法控制';
+  /* 本机确实无法通过官方接口实现的功能：诚实提示，不假装生效 */
+  function lockReason(el) {
+    return LOCK_INFO[el.dataset.lock] || '本机不提供该厂商接口';
+  }
   function vendorOnly(label) {
-    if (desktop) toast(`${label}需要厂商 EC 驱动，本机不可用`);
+    if (desktop) toast(`${label}：本机不提供该厂商接口`);
     else toast(`${label}为演示项`);
   }
 
@@ -616,7 +732,7 @@
       e.stopPropagation();
       const locked = sw.closest('[data-lock]');
       if (desktop && locked) {
-        toast(`${locked.dataset.lock}需要厂商 EC 驱动，本机不可用`);
+        toast(`${locked.dataset.lock}：${lockReason(locked)}`);
         return;
       }
       sw.classList.toggle('on');
@@ -642,14 +758,14 @@
   });
 
   $('#chargeLimit').addEventListener('input', e => {
-    if (desktop) { toast('充电阈值需要厂商 EC 驱动，本机不可用'); return; }
+    if (desktop) { toast('充电阈值：官方控制中心未启用电池保护模块，本机无法设置'); return; }
     $('#limitLabel').textContent = `${e.target.value}%`;
     const on = +e.target.value < 100;
     $('#chargeLimitSwitch').classList.toggle('on', on);
   });
 
   $('#chargeLimitSwitch').addEventListener('click', () => {
-    if (desktop) { toast('充电阈值需要厂商 EC 驱动，本机不可用'); return; }
+    if (desktop) { toast('充电阈值：官方控制中心未启用电池保护模块，本机无法设置'); return; }
     const on = $('#chargeLimitSwitch').classList.contains('on');
     const range = $('#chargeLimit');
     range.value = on ? 80 : 100;
@@ -701,7 +817,7 @@
   $('#colorModes')?.addEventListener('click', e => {
     const b = e.target.closest('.mode-card');
     if (!b) return;
-    if (desktop) { toast('色彩模式需要厂商显示驱动，本机不可用'); return; }
+    if (desktop) { toast('色彩模式：本机未提供 RGB 灯控服务（单色键盘灯）'); return; }
     $$('#colorModes .mode-card').forEach(x => x.classList.toggle('active', x === b));
     toast(`色彩模式：${b.querySelector('b').textContent}`);
   });
@@ -872,7 +988,7 @@
   let appCursor = 0;
 
   $('#addBindBtn')?.addEventListener('click', () => {
-    if (desktop) { toast('应用绑定需要厂商 EC 驱动，本机不可用'); return; }
+    if (desktop) { toast('应用绑定：需常驻的应用监控服务，本应用不实现'); return; }
     const [ico, name, mode] = APPS[appCursor % APPS.length];
     appCursor++;
     const row = document.createElement('div');

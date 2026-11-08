@@ -4,3 +4,10 @@ release/
 *.log
 .DS_Store
 Thumbs.db
+
+# 本地一次性探测脚本（含本机特定地址/端口）
+ktest.cjs
+probe23.cjs
+
+# 厂商安装包，无分发权，不入库
+downloads/
