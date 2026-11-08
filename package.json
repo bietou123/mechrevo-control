@@ -9,7 +9,7 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --win portable"
+    "dist": "electron-builder --win portable -c.electronDist=node_modules/electron/dist"
   },
   "build": {
     "appId": "com.bietou123.mechrevo-control",

@@ -42,6 +42,7 @@ npm run dist         # 打便携版 release/MECHREVO-Control-<version>.exe
 ```
 
 - `main.js` 是主进程：窗口控制、遥测推送、电源计划、亮度与显示模式；`preload.js` 只通过 `contextBridge` 暴露上述接口。
+- `npm run dist` 直接复用 `node_modules/electron/dist` 打包（`-c.electronDist`），不再次从 GitHub 下载 Electron；网络受限时也能离线出包。产物在 `release/`，已被 `.gitignore` 忽略。
 - 页面用 `window.desktop` 判断运行环境：有该对象时走真实数据，没有时保持网页版的模拟数据。
 - 自动化测试可设 `MECHREVO_TEST=1` 隐藏窗口并开 CDP 调试端口（默认 9411）。
 - 已验证：v1.1.0 在 Windows 11 + RTX 3060 上以隐藏窗口方式启动，8 个视图全部渲染，无控制台错误；桌面遥测、电源计划、亮度、刷新率读取正常。
