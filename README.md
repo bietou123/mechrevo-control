@@ -10,6 +10,17 @@
 
 ---
 
+## 下载
+
+| 版本 | 说明 | 下载 |
+|---|---|---|
+| 桌面版 v1.1.0 | Windows 便携版，免安装，双击即用（约 91 MB） | [MECHREVO-Control-1.1.0.exe](https://github.com/bietou123/mechrevo-control/releases/download/v1.1.0/MECHREVO-Control-1.1.0.exe) |
+| 网页版 | 零依赖纯前端，克隆仓库后双击 `index.html` | [全部发布](https://github.com/bietou123/mechrevo-control/releases) |
+
+> 便携版未做代码签名，Windows SmartScreen 可能提示「未知发布者」，选择「更多信息 → 仍要运行」即可。
+
+---
+
 ## 预览
 
 **控制台总览** — 实时负载曲线、四大核心指标卡、快捷入口
